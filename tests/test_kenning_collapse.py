@@ -99,6 +99,90 @@ def test_apply_collapses_is_idempotent(tmp_path: Path) -> None:
     assert second["unresolved_from"] == 1
 
 
+def test_collapse_fold_then_rescreen_revert_unfolds_on_replay(tmp_path: Path) -> None:
+    """wyrd-21p8: appending an ``into: ""`` revert row AFTER a fold row for the same
+    ref cancels the fold on replay — ``collect_collapses`` is last-write-wins per
+    ref, so the ref's merged state is ``into: ""``, ``apply_collapses`` no-ops, and
+    the etymon is NEVER tombstoned (``merged_into_id`` stays NULL). This is the
+    un-tombstone mechanism the variant-fold rescreen relies on: the L2 ledger is the
+    fix; the live DB heals on the next full rebuild/replay."""
+    ids = _seed(tmp_path / "lex.db")
+    ledger = tmp_path / "_collapses.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "_type": "collapse",
+                "ref": "old-english:burh",
+                "into": "old-english:burg",
+                "variant_class": "alternative",
+                "method": "llm-variant-fold-v1",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "_type": "collapse",
+                "ref": "old-english:burh",
+                "into": "",
+                "variant_class": "alternative",
+                "method": "llm-variant-fold-rescreen-v1",
+                "reason": "distinct morphemes wrongly folded on framing/surface",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    state = collect_collapses([ledger])
+    assert state["old-english:burh"]["into"] == ""  # revert wins (last-write)
+    with LexiconDB(tmp_path / "lex.db") as db:
+        counts = apply_collapses(db, state, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ids["burh"],)
+        ).fetchone()[0]
+    assert merged is None  # NOT tombstoned — the fold was reverted
+    assert counts["collapses_processed"] == 0
+    assert counts["empty_into_skipped"] == 1
+
+
+def test_collapse_rescreen_revert_replay_is_idempotent(tmp_path: Path) -> None:
+    """The reverted (no-op) ledger state re-applies with zero effect — a second
+    replay of the corrected ledger changes nothing and keeps ``merged_into_id``
+    NULL (idempotency of the un-fold path)."""
+    ids = _seed(tmp_path / "lex.db")
+    ledger = tmp_path / "_collapses.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "_type": "collapse",
+                "ref": "old-english:burh",
+                "into": "old-english:burg",
+                "method": "llm-variant-fold-v1",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "_type": "collapse",
+                "ref": "old-english:burh",
+                "into": "",
+                "method": "llm-variant-fold-rescreen-v1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    state = collect_collapses([ledger])
+    with LexiconDB(tmp_path / "lex.db") as db:
+        apply_collapses(db, state, apply=True)
+        second = apply_collapses(db, state, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ids["burh"],)
+        ).fetchone()[0]
+    assert merged is None
+    assert second["collapses_processed"] == 0
+    assert second["empty_into_skipped"] == 1
+
+
 def test_apply_collapses_dry_run_writes_nothing(tmp_path: Path) -> None:
     _seed(tmp_path / "lex.db")
     with LexiconDB(tmp_path / "lex.db") as db:

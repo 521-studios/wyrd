@@ -1,0 +1,487 @@
+{"ref": "old-english:-ingas", "into": "old-english:-ing", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:[] | I:[])"}
+{"ref": "old-english:inga", "into": "old-english:-ing", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['\"at the\"', '\"of the\"'] | I:[])"}
+{"ref": "latin:castelli", "into": "latin:castellum", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['castle, fortified place'] | I:['castle'])"}
+{"ref": "latin:caestir", "into": "latin:castra", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['camp'] | I:['fort, camp'])"}
+{"ref": "latin:episcopi", "into": "latin:episcopus", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['of the bishop'] | I:['A bishop.'])"}
+{"ref": "latin:magna", "into": "latin:magnus", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Big, great.'] | I:['great'])"}
+{"ref": "latin:port", "into": "latin:porta", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['harbour, gate', 'harbour, port'] | I:['gate'])"}
+{"ref": "middle-english:abbaye", "into": "middle-english:abbey", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['An abbey.'] | I:['An abbey (a building or monastic institution).'])"}
+{"ref": "middle-english:atten", "into": "middle-english:atter", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['At the: used with masculine and neuter nouns.'] | I:['At the: used with feminine nouns.; Bere'])"}
+{"ref": "middle-english:brende", "into": "middle-english:brand", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Burnt; cleared by burning; consumed or destroyed by fire.'] | I:['fire, flame'])"}
+{"ref": "middle-english:spitel", "into": "middle-english:hospital", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A hospital, a religious house, a house of the Knights Hospitallers.'] | I:['A hospital, a hospice.; Mayne'])"}
+{"ref": "middle-english:munte", "into": "middle-english:mount", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A mount, a hill.'] | I:['A mountain; a mount or peak, especially the Alps.'])"}
+{"ref": "middle-english:saffroun", "into": "middle-english:saffron", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Saffron.'] | I:['saffron (the plant Crocus sativus)'])"}
+{"ref": "modern-english:baxter", "into": "modern-english:baker", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['baker (trade name)'] | I:['A person who bakes and sells bread, cakes and similar items.', 'Baker'])"}
+{"ref": "old-english:Ceatwa", "into": "old-english:Ceatta", "verdict": "REVERT", "rationale": "framing-only glosses ('masculine personal name') + surface-similar but distinct OE names; no meaning signal (Ede/Eve class)"}
+{"ref": "old-english:Godgiefu", "into": "old-english:Godgifu", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['a feminine personal name'] | I:['a feminine personal name'])"}
+{"ref": "old-english:Gōdgifu", "into": "old-english:Godgifu", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['a feminine personal name'] | I:['a feminine personal name'])"}
+{"ref": "old-english:alr", "into": "old-english:alor", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['alder', 'alder (tree)'] | I:['Alder tree', 'An alder-tree.'])"}
+{"ref": "old-english:erg", "into": "old-english:beorg", "verdict": "REVERT", "rationale": "etymologically distinct: erg = ON-derived hill-PASTURE/shieling vs beorg = OE hill/barrow/tumulus; folded on 'hill' surface overlap (medium conf)"}
+{"ref": "old-english:bit", "into": "old-english:bita", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['imperative singular of bītan', 'piece of land'] | I:['A morsel, piece.'])"}
+{"ref": "old-english:bldc", "into": "old-english:blāc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['pale, livid'] | I:['Pale, white, bleak.'])"}
+{"ref": "old-english:blā", "into": "old-english:blāw", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Blue, cold, cheerless.'] | I:['(Blue) pigment.'])"}
+{"ref": "old-english:brid", "into": "old-english:bridd", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['bird', 'young birds'] | I:['A bird; a young bird.'])"}
+{"ref": "old-english:burge", "into": "old-english:burg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['borough, a fort', 'inflection of beorgan:'] | I:['borough', 'city or town'])"}
+{"ref": "old-english:braegels", "into": "old-english:byrgels", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Barrow', 'Tumulus'] | I:['A burial place, a tumulus.'])"}
+{"ref": "old-english:baum", "into": "old-english:bēam", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['tree'] | I:['A tree; the cross on which Christ was crucified; a beam of timber.', 'Tree stump'])"}
+{"ref": "old-english:ceorles", "into": "old-english:ceorl", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['husbandman'] | I:['A freeman of the lower class, a peasant.', 'Freeman'])"}
+{"ref": "old-english:cilda", "into": "old-english:cild", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['personal name', 'young men'] | I:['A child, a young person, a boy, a son.', 'Nobleman (young)'])"}
+{"ref": "old-english:clof", "into": "old-english:clofen", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Something cut; a crevice, a valley.'] | I:['Cloven, split: used of a hill being cut through by a valley.'])"}
+{"ref": "old-english:clūder", "into": "old-english:clūd", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A mass of rocks or debris.'] | I:['A rock, a mass of rock; probably also a (rocky) hill.'])"}
+{"ref": "old-english:cnihtes", "into": "old-english:cniht", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:[\"knight's\", 'knight, servant, young warrior'] | I:['A youth, a servant, a soldier.', 'Retainer'])"}
+{"ref": "old-english:cnocc", "into": "old-english:cocc", "verdict": "REVERT", "rationale": "cocc's dominant sense is 'cock (rooster)'; cnocc='hillock' matches only cocc's secondary 'heap/hillock' — distinct-morpheme conflation risk (D46)"}
+{"ref": "old-english:cranuc", "into": "old-english:cran", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A crane (the bird).'] | I:['A crane; probably also a heron or similar bird.', 'Crane'])"}
+{"ref": "old-english:cruzpp", "into": "old-english:cropp", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['top', 'top, cop, small hill'] | I:['The sprout or top of a plant, a bunch of blooms, a cluster of herbs; a swelling, mound, hill.'])"}
+{"ref": "old-english:crumbe", "into": "old-english:crumb", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A bend (esp. in a river or stream).', 'crooked'] | I:['Crooked, twisted, bent.'])"}
+{"ref": "old-english:cininges", "into": "old-english:cyning", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:[\"king's\"] | I:['A king.', 'King'])"}
+{"ref": "old-english:cyninges", "into": "old-english:cyning", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:[\"king's\"] | I:['A king.', 'King'])"}
+{"ref": "old-english:czerse", "into": "old-english:cærse", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['cress'] | I:['Cress, water-cress.', 'Cress, water-cress.; Carey'])"}
+{"ref": "old-english:cūpe", "into": "old-english:cȳpe", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A coop, a basket (for catching fish).'] | I:['An osier-basket (especially for catching fish).'])"}
+{"ref": "old-english:dylf", "into": "old-english:delf", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A pity, a quarry.'] | I:['A digging, a trench, a pit, a quarry.'])"}
+{"ref": "old-english:dearne", "into": "old-english:derne", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['dark, sombre, wild, drear', 'secret, hidden'] | I:['secret, hidden or remote', 'secret, hidden, remote'])"}
+{"ref": "old-english:dēoping", "into": "old-english:dēop", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A deep place.'] | I:['Deep', 'Deep.'])"}
+{"ref": "old-english:ēa-land", "into": "old-english:ealand", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Land by water or by a river, an island.'] | I:['island'])"}
+{"ref": "old-english:ecgan", "into": "old-english:ecg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['edge or hill-side'] | I:['An edge; the edge of a hill, an escarpment.', 'Cliff'])"}
+{"ref": "old-english:ellern", "into": "old-english:ellen", "verdict": "REVERT", "rationale": "ellen's dominant OE sense is 'strength/courage'; ellern='elder-tree' matches only ellen's secondary tree sense — homograph conflation risk (D46)"}
+{"ref": "old-english:elma", "into": "old-english:elm", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['elm-trees'] | I:['An elm-tree.', 'elm'])"}
+{"ref": "old-english:elmen", "into": "old-english:elm", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Near or growing with elm-trees; made of elm.'] | I:['An elm-tree.', 'elm'])"}
+{"ref": "old-english:falh", "into": "old-english:fealh", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Fallow Land'] | I:['felly of a wheel or harrow', 'ploughed land'])"}
+{"ref": "old-english:fealwe", "into": "old-english:fealu", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['fallow'] | I:['Fallow, pale brown or reddish yellow.'])"}
+{"ref": "old-english:flam", "into": "old-english:flēam", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['flight, refuge'] | I:['Flight (of a criminal, defeated troops, etc.)', 'Refuge'])"}
+{"ref": "old-english:free", "into": "old-english:frec", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['greedy or dangerous'] | I:['greedy, bold'])"}
+{"ref": "old-english:foeger", "into": "old-english:fæger", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['fair, beautiful'] | I:['Fair, beautiful, pleasant.'])"}
+{"ref": "old-english:geg(e)n", "into": "old-english:gegn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['direct or straight'] | I:['Direct', 'Direct.'])"}
+{"ref": "old-english:gild", "into": "old-english:gield", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A sacrifice, an idol, worship; a tax, a payment; a guild.'] | I:['Rent', 'Tax'])"}
+{"ref": "old-english:gref", "into": "old-english:græf", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['grave, trench, pit', 'trench, ditch, grave'] | I:['A digging, a grave, a pit, a trench.'])"}
+{"ref": "old-english:heal", "into": "old-english:halt", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['angle, corner, slope'] | I:['nook of land, corner'])"}
+{"ref": "old-english:hammes", "into": "old-english:hamm", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['stream bordering the enclosure; island or marshy land in the bend of a river'] | I:['Enclosure', 'Fold'])"}
+{"ref": "old-english:heale", "into": "old-english:healh", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['dative singular of healh', 'haugh'] | I:['a slope', 'corner of ground'])"}
+{"ref": "old-english:hserge", "into": "old-english:hearg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['temple'] | I:['A heathen place of worship, a temple, sacred grove, idol.'])"}
+{"ref": "old-english:harper", "into": "old-english:hearpere", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['harper (personal name)'] | I:['A harper.'])"}
+{"ref": "old-english:henne", "into": "old-english:henn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:[\"hen's\"] | I:['A hen. (Usually taken to be a wild hen or water-hen in place-names; perhaps also a domestic hen.)', 'Bird'])"}
+{"ref": "old-english:hertes", "into": "old-english:herte", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['stag'] | I:['hart, male deer', 'hart, stag'])"}
+{"ref": "old-english:heruteu", "into": "old-english:herte", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['stag'] | I:['hart, male deer', 'hart, stag'])"}
+{"ref": "old-english:hlið", "into": "old-english:hlid", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A slope, a hill-side.'] | I:['A slope.', 'slope'])"}
+{"ref": "old-english:hlenc", "into": "old-english:hlinc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['An extensive hill-slope.'] | I:['A bank, a ledge; a terrace; a ledge of ploughland on a hillside; an unploughed strip between fields.', 'Bank'])"}
+{"ref": "old-english:hldw", "into": "old-english:hlæw", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['hill', 'tumulus'] | I:['hill or barrow'])"}
+{"ref": "old-english:hlūde", "into": "old-english:hlūd", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Loud', 'Noisy'] | I:['Loud, noisy.'])"}
+{"ref": "old-english:hogges", "into": "old-english:hogg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:[\"hog's\"] | I:['A hog, a pig.'])"}
+{"ref": "old-english:horn(a)", "into": "old-english:horn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['corner of land'] | I:['A horn; something shaped like a horn; a hornlike projection on a building; a projecting piece of land, esp. formed in a river-bend; a projecting headland; a horn-shaped hill.', 'Horn'])"}
+{"ref": "old-english:hunda", "into": "old-english:hund", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Hunda', \"a man's name (or possibly 'hound')\"] | I:['A hound, a dog.', 'Dog'])"}
+{"ref": "old-english:humele", "into": "old-english:hymele", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Hops', 'The hop-plant.'] | I:['A hop plant.'])"}
+{"ref": "old-english:hæcc", "into": "old-english:hæc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A hatch, a grating, a half-gate, a gate; a sluice-gate.'] | I:['hatch, half-door'])"}
+{"ref": "old-english:hægen", "into": "old-english:hæg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['An enclosure; a park.'] | I:['A fence, an enclosure.'])"}
+{"ref": "old-english:hasel", "into": "old-english:hæsel", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['hazel'] | I:['A hazel-tree.'])"}
+{"ref": "old-english:héafod", "into": "old-english:hēafod", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['head, headland'] | I:['A head; an end or source; headland in a field-system; a projecting piece of ground; a hill (often small).', 'Beginning'])"}
+{"ref": "old-english:héah", "into": "old-english:hēah", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['high'] | I:['A high place, a height.'])"}
+{"ref": "old-english:hǣse", "into": "old-english:hǣst", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Land overgrown with brushwood.'] | I:['Undergrowth, brushwood.'])"}
+{"ref": "old-english:lacuc", "into": "old-english:lacu", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A small stream.'] | I:['A small stream, a watercourse.', 'Lake'])"}
+{"ref": "old-english:lorte", "into": "old-english:lort", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Dirt, mud, a muddy place, a swamp.'] | I:['dirt'])"}
+{"ref": "old-english:lutel", "into": "old-english:lȳtel", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['little'] | I:['Little, small.'])"}
+{"ref": "old-english:mylde", "into": "old-english:molde", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Cultivated land', 'Ploughed or tilled land'] | I:['Earth, soil.'])"}
+{"ref": "old-english:myr(i)ge", "into": "old-english:myrge", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['marsh', 'pleasant'] | I:['Merry-making', 'Pleasant, sweet, agreeable.'])"}
+{"ref": "old-english:mǣnnes", "into": "old-english:mǣne", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A community; common land, a common holding.'] | I:['Common; communal (land).'])"}
+{"ref": "old-english:mate", "into": "old-english:mǣte", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['small, poor, bad'] | I:['Mean, poor, inferior, small, bad.'])"}
+{"ref": "old-english:nesu", "into": "old-english:neosu", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A nose; a headland, a promontory, a projecting piece of land in the bend of a river.'] | I:['Headland', 'Point'])"}
+{"ref": "old-english:nettel", "into": "old-english:netele", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['nettle (plant)'] | I:['nettle'])"}
+{"ref": "old-english:norð", "into": "old-english:norþ", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Northern, north.'] | I:['north'])"}
+{"ref": "old-english:parroc", "into": "old-english:pearroc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['enclosure'] | I:['A fence enclosing a piece of ground; the ground enclosed within a fence, a small enclosure, a paddock; a fishing enclosure.', 'Paddock'])"}
+{"ref": "old-english:parruc", "into": "old-english:pearroc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['croft, enclosure, park'] | I:['A fence enclosing a piece of ground; the ground enclosed within a fence, a small enclosure, a paddock; a fishing enclosure.', 'Paddock'])"}
+{"ref": "old-english:pearr", "into": "old-english:pearroc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['An enclosure.'] | I:['A fence enclosing a piece of ground; the ground enclosed within a fence, a small enclosure, a paddock; a fishing enclosure.', 'Paddock'])"}
+{"ref": "old-english:prūme", "into": "old-english:plūme", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A plum.'] | I:['A plum; a plum-tree.', 'Plum tree'])"}
+{"ref": "old-english:pound", "into": "old-english:pund", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Enclosure', 'Fold'] | I:['A pound, an enclosure into which stray cattle were put.'])"}
+{"ref": "old-english:pynd", "into": "old-english:pund", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['An enclosure, a pound.'] | I:['A pound, an enclosure into which stray cattle were put.'])"}
+{"ref": "old-english:scald", "into": "old-english:sceald", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Shallow'] | I:['Shallow (especially of water).'])"}
+{"ref": "old-english:spald", "into": "old-english:sceald", "verdict": "REVERT", "rationale": "distinct meaning: spald = ditch/trench/moat vs sceald = 'shallow'; surface-similar fold, no shared sense (medium conf)"}
+{"ref": "old-english:scearnig", "into": "old-english:scearn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Dirty, mucky.'] | I:['Dirty', 'Dung, muck.'])"}
+{"ref": "old-english:scot", "into": "old-english:sceot", "verdict": "REVERT", "rationale": "ref gloss EMPTY (unverifiable) + scot has a distinct common 'tax/payment' homograph vs sceot='shooting/projection' (D46)"}
+{"ref": "old-english:schele", "into": "old-english:sele", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Cottage', 'Dwelling'] | I:['A dwelling, a house, a hall.'])"}
+{"ref": "old-english:seel", "into": "old-english:sele", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['a hall'] | I:['A dwelling, a house, a hall.'])"}
+{"ref": "old-english:slǣpe", "into": "old-english:slǣp", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Slippery, muddy.'] | I:['A slippery place.  Not certain to have been used of marshes.'])"}
+{"ref": "old-english:smið", "into": "old-english:smiþ", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A smith, a worker in metal.'] | I:['smith'])"}
+{"ref": "old-english:smal", "into": "old-english:smæl", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['narrow'] | I:['Narrow, thin.'])"}
+{"ref": "old-english:spenn", "into": "old-english:spann", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A clasp, a buckle; used topographically, perhaps of a strip of land or a fence.'] | I:[\"A hand's breadth, a span; topographically, a tract of land linking or separating two things.\"])"}
+{"ref": "old-english:spearr", "into": "old-english:spere", "verdict": "REVERT", "rationale": "spearr = spar/rafter/beam vs spere = spear (weapon); distinct lexemes, only a thin 'shaft' overlap (D46)"}
+{"ref": "old-english:stoccen", "into": "old-english:stocc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Made of logs.'] | I:['A tree-trunk, a stump, a log of wood, a stock (esp. in boundary marks or place-names that denote structures made of logs); a set of stocks as an engine of punishment.', 'a stock, log, tree-stump'])"}
+{"ref": "old-english:stot", "into": "old-english:stott", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A horse, an ox.', 'a young horse or bullock'] | I:['an inferior type of horse'])"}
+{"ref": "old-english:strea", "into": "old-english:strēaw", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['straw'] | I:['Straw; also used in late place-names as a term of contempt.'])"}
+{"ref": "old-english:strea[w]", "into": "old-english:strēaw", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['straw'] | I:['Straw; also used in late place-names as a term of contempt.'])"}
+{"ref": "old-english:stybbing", "into": "old-english:stybb", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A place with tree-stumps, a clearing.'] | I:['A stub, a tree-stump.', 'Tree stump'])"}
+{"ref": "old-english:stef", "into": "old-english:stæf", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['staff, stick, post'] | I:['A staff, a stave, a rod.'])"}
+{"ref": "old-english:stun", "into": "old-english:stān", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['stone or place'] | I:['A stone, stone, rock.', 'Marking stone'])"}
+{"ref": "old-english:stud", "into": "old-english:stōd", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['stud (a herd of horses or other animals)'] | I:['A stud, a herd of horses.', 'Foal'])"}
+{"ref": "old-english:swln", "into": "old-english:swīn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['wild boar'] | I:['A swine, a pig.', 'Boar'])"}
+{"ref": "old-english:wara", "into": "old-english:waru", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['people, folk, inhabitants'] | I:['people'])"}
+{"ref": "old-english:warde", "into": "old-english:weard", "verdict": "REVERT", "rationale": "warde = territorial 'district/ward/area' vs weard = 'guardian/watch/warden'; related root but semantically distinct senses conflated (D46)"}
+{"ref": "old-english:werce", "into": "old-english:weorc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['work or rampart'] | I:['A work, a building structure; a fortification.'])"}
+{"ref": "old-english:ping", "into": "old-english:þing", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['assembly'] | I:['An assembly, a council, a meeting.'])"}
+{"ref": "old-english:dcen", "into": "old-english:ācen", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['oak'] | I:['Oak grove', 'Oak tree'])"}
+{"ref": "old-french:fontein", "into": "old-french:fontaine", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['A fountain, a spring.'] | I:['fountain'])"}
+{"ref": "old-french:rouge", "into": "old-french:roge", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or meaning-bearing shared sense (R:['Red.'] | I:['red (of a red color)'])"}
+{"ref": "old-norse:ask", "into": "old-norse:aska", "verdict": "REVERT", "rationale": "ask = ash-TREE (acc. of askr) vs aska = ashes/burnt residue; distinct referents folded on surface"}
+{"ref": "old-norse:beid", "into": "old-norse:beit", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['pasture'] | I:['a pasturage, a pasture'])"}
+{"ref": "old-norse:blá", "into": "old-norse:blár", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['blue, black', 'blue, dark'] | I:['Black', 'Dark'])"}
+{"ref": "old-norse:breidr", "into": "old-norse:breiðr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['broad'] | I:['Broad, spacious.'])"}
+{"ref": "old-norse:breithr", "into": "old-norse:breiðr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Broad'] | I:['Broad, spacious.'])"}
+{"ref": "old-norse:buski", "into": "old-norse:buskr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Brambles', 'Brush'] | I:['A bush, a shrub.'])"}
+{"ref": "old-norse:eiki", "into": "old-norse:eik", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Oaken, oak, oakwood.'] | I:['An oak-tree.', 'Oak grove'])"}
+{"ref": "old-norse:0yrr", "into": "old-norse:eyrr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['a gravelly bank'] | I:['gravel-bank', 'gravelly beach'])"}
+{"ref": "old-norse:eyr-r", "into": "old-norse:eyrr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['gravel bank, sandbank, spit of land'] | I:['gravel-bank', 'gravelly beach'])"}
+{"ref": "old-norse:oyrr", "into": "old-norse:eyrr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['a gravelly bank'] | I:['gravel-bank', 'gravelly beach'])"}
+{"ref": "old-norse:flat", "into": "old-norse:flatr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['flat land'] | I:['Even', 'Flat'])"}
+{"ref": "old-norse:grcenn", "into": "old-norse:grœnn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['green'] | I:['Green, grass-grown.'])"}
+{"ref": "old-norse:hain", "into": "old-norse:hagi", "verdict": "REVERT", "rationale": "hain = 'hedge / to enclose with a fence' (verb, likely hegna) vs hagi = pasture/grazing-enclosure (noun); POS+sense mismatch, medium conf (D46)"}
+{"ref": "old-norse:hal", "into": "old-norse:hali", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['tail'] | I:['A tail; a long, narrow piece of land.'])"}
+{"ref": "old-norse:hjalla", "into": "old-norse:hjallr", "verdict": "REVERT", "rationale": "hjalli = ledge/terrace/shelf vs hjallr = a hut/shed (primary); only secondary ledge overlap (D46)"}
+{"ref": "old-norse:hlada", "into": "old-norse:hlaða", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['barn'] | I:['A store-house, a barn.'])"}
+{"ref": "old-norse:holh", "into": "old-norse:hol", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['fen', 'hollow'] | I:['a hole', 'hollow, cavity'])"}
+{"ref": "old-norse:horni", "into": "old-norse:horn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Horn'] | I:['A horn; something shaped like a horn; a hornlike projection on a building; a projecting piece of land, esp. formed in a river-bend; a projecting headland; a horn-shaped hill.', 'horn (of an animal)'])"}
+{"ref": "old-norse:hroysi", "into": "old-norse:hreysi", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['heap of stones, cairn', 'heap, cairn'] | I:['A cairn, a heap of stones.', 'Cultivated land'])"}
+{"ref": "old-norse:hris", "into": "old-norse:hrís", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['brushwood'] | I:['Shrubs, brushwood.'])"}
+{"ref": "old-norse:horgr", "into": "old-norse:hǫrgr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Burial mound', 'Cairn'] | I:['A heap of stones, a cairn, an altar.'])"}
+{"ref": "old-norse:carl", "into": "old-norse:karl", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['churl', 'man, churl'] | I:['A freeman of the lower class, a peasant.', 'Freeman'])"}
+{"ref": "old-norse:kjalar", "into": "old-norse:kjǫlr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['keel'] | I:['A keel, a ridge (of hills).'])"}
+{"ref": "old-norse:kros", "into": "old-norse:kross", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Cross (holy symbol)', 'Cross roads'] | I:['A cross, the Cross.', 'a cross'])"}
+{"ref": "old-norse:krokr", "into": "old-norse:krókr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['a personal name', 'crook'] | I:['A crook, a bend; usually denoting land in the bend of a river, but sometimes a nook, a secluded corner of land.', 'River bend'])"}
+{"ref": "old-norse:luka", "into": "old-norse:lúka", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['the hollow of the hand'] | I:['The hollow of the hand; topographically a hollow.'])"}
+{"ref": "old-norse:mdlmar", "into": "old-norse:malmr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['sandy field'] | I:['Sand, a sandy field.'])"}
+{"ref": "old-norse:myrr", "into": "old-norse:marr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Bog', 'Marsh'] | I:['A fen, a marsh.', 'horse, steed'])"}
+{"ref": "old-norse:márr", "into": "old-norse:marr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A horse; usually poetic.'] | I:['A fen, a marsh.', 'horse, steed'])"}
+{"ref": "old-norse:mathra", "into": "old-norse:maðra", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Madder plant'] | I:['The madder.'])"}
+{"ref": "old-norse:methal", "into": "old-norse:meðal", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Middle'] | I:['Among, between; middle.'])"}
+{"ref": "old-norse:sǽtr", "into": "old-norse:setr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A mountain pasture, a shieling.'] | I:['Estate', 'Farmstead'])"}
+{"ref": "old-norse:skard", "into": "old-norse:skarð", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['notch, pass', 'open space'] | I:['An opening, an open place in the edge of something, a gap, a mountain pass.'])"}
+{"ref": "old-norse:skaré", "into": "old-norse:skarð", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['long narrow pass'] | I:['An opening, an open place in the edge of something, a gap, a mountain pass.'])"}
+{"ref": "old-norse:staftr", "into": "old-norse:staðr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['place'] | I:['A place, a site.'])"}
+{"ref": "old-norse:svin", "into": "old-norse:svín", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['swine'] | I:['A swine, a pig.'])"}
+{"ref": "old-norse:timbær", "into": "old-norse:timbr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Timber, trees, wood.'] | I:['timber'])"}
+{"ref": "old-norse:vidr", "into": "old-norse:viðr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['wood'] | I:['A wood; or a tree, a tree-trunk.'])"}
+{"ref": "old-norse:pveit", "into": "old-norse:þveit", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['clearing', 'enclosure'] | I:['A clearing, a meadow, a paddock.'])"}
+{"ref": "old-norse:veit", "into": "old-norse:þveit", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['clearing, meadow'] | I:['A clearing, a meadow, a paddock.'])"}
+{"ref": "latin:albo-", "into": "latin:albus", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:[] | I:['White.', 'white'])"}
+{"ref": "latin:cestre", "into": "latin:castra", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['fort'] | I:['fort, camp'])"}
+{"ref": "middle-english:Ede", "into": "middle-english:Eve", "verdict": "REVERT", "rationale": "CONFIRMED WRONG (seed): Ede = medieval pet form of Edith/OE Eadgifu (framing-only gloss) vs Eve = Hebrew Eva (biblical); etymologically distinct names folded on framing + surface"}
+{"ref": "old-english:aller", "into": "old-english:alor", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['alder'] | I:['Alder tree', 'An alder-tree.'])"}
+{"ref": "old-english:bearwes", "into": "old-english:bearu", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['beam or grove', 'of or by the beam or grove'] | I:['A grove.  (Usually refers to a wood of limited extent rather than to forest areas.)', 'grove'])"}
+{"ref": "old-english:blake", "into": "old-english:blat", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['pale'] | I:['pale, livid, ghastly'])"}
+{"ref": "old-english:black", "into": "old-english:blæc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['colour of the soil, materials, or waters', 'dark'] | I:['Black, dark-coloured, dark.', 'black'])"}
+{"ref": "old-english:bytle", "into": "old-english:botl", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A building, a house.'] | I:['building', 'house, dwelling'])"}
+{"ref": "old-english:sburi", "into": "old-english:burg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['place'] | I:['borough', 'city or town'])"}
+{"ref": "old-english:clacc", "into": "old-english:canc", "verdict": "REVERT", "rationale": "clacc and canc are distinct OE hill-words (far surface: clacc vs canc); a synonym-merge, not a spelling variant"}
+{"ref": "old-english:clen", "into": "old-english:clǣne", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['clean'] | I:['Clean, clear of weeds, etc.'])"}
+{"ref": "old-english:cymbe", "into": "old-english:comb", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A depression, a hollow.'] | I:['Dale', 'Hollow'])"}
+{"ref": "old-english:flote(n)", "into": "old-english:flot", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['flooded'] | I:['Deep water, the sea; flooded land.'])"}
+{"ref": "old-english:hafeces", "into": "old-english:hafoc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:[\"hawk's\"] | I:['Bird of prey', 'Buzzard'])"}
+{"ref": "old-english:hart", "into": "old-english:herte", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['deer'] | I:['hart, male deer', 'hart, stag'])"}
+{"ref": "old-english:hlyde", "into": "old-english:hlūd", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Loud', 'Noisy'] | I:['Loud, noisy.'])"}
+{"ref": "old-english:how", "into": "old-english:hol", "verdict": "REVERT", "rationale": "how is ambiguous — 'a hollow, a low hill'; likely haugr 'hill/mound' (ON), the OPPOSITE of hol 'hollow' it folds into (D46)"}
+{"ref": "old-english:hūc", "into": "old-english:hōc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A hook; a river-bend.'] | I:['A hook; a projecting piece of ground.'])"}
+{"ref": "old-english:hdh", "into": "old-english:hōh", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['heel of land'] | I:['A heel; a sharply projecting piece of ground.', 'Hill with a pointed ridge or spur'])"}
+{"ref": "old-english:leg", "into": "old-english:ieg", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['alternative form of līeġ', 'an island; elevated piece of land surrounded by marsh or flooded depressions'] | I:['island', 'marshy ground'])"}
+{"ref": "old-english:muneces", "into": "old-english:munuc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['of the monk'] | I:['A monk.', 'Monk'])"}
+{"ref": "old-english:sparr", "into": "old-english:spearca", "verdict": "REVERT", "rationale": "sparr = spar/stick/pole vs spearca = spark/brushwood (messy 'uncertain' gloss); distinct words, divergent surface"}
+{"ref": "old-english:spánn", "into": "old-english:spōn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Shingle'] | I:['A chip, a shaving of wood; perhaps also a wooden shingle tile.'])"}
+{"ref": "old-english:spēne", "into": "old-english:spōn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Wood-chips'] | I:['A chip, a shaving of wood; perhaps also a wooden shingle tile.'])"}
+{"ref": "old-english:sūð", "into": "old-english:sūþ", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['South, southern.'] | I:['south'])"}
+{"ref": "old-english:soete", "into": "old-english:sǣte", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['settlement', 'settlers'] | I:['Settlers, dwellers.'])"}
+{"ref": "old-english:uppan", "into": "old-english:ufan", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Up', 'Up, higher up, upon.'] | I:['Over, above.  (Comparative: higher, upper.  Superlative: uppermost.)', 'above'])"}
+{"ref": "old-english:wold", "into": "old-english:weald", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['open rolling country', 'wold'] | I:['forest', 'forest, open country'])"}
+{"ref": "old-english:weorj)", "into": "old-english:wer", "verdict": "REVERT", "rationale": "garbled OCR ref; if weorþ ('worth', settlement-enclosure) it is distinct from wer ('weir', river fishing-dam) — unverifiable surface (D46)"}
+{"ref": "old-english:wering", "into": "old-english:wer", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A river-dam.'] | I:['A weir, a river-dam; a fishing-enlosure in a river.', 'Weir (fishing enclosure)'])"}
+{"ref": "old-english:xsc", "into": "old-english:æsc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['ash-tree'] | I:['ash (tree)'])"}
+{"ref": "old-french:real", "into": "old-french:roial", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:[] | I:['Royal'])"}
+{"ref": "old-norse:bolla", "into": "old-norse:boli", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Botti or Bull'] | I:['A steer, a bull.', 'Bull'])"}
+{"ref": "old-norse:bro&ir", "into": "old-norse:bróðir", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:[\"Brother's\"] | I:['A brother; (later) a religious brother, monk.'])"}
+{"ref": "old-norse:flgt", "into": "old-norse:flatr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['a plain, a level piece of ground'] | I:['Even', 'Flat'])"}
+{"ref": "old-norse:flát", "into": "old-norse:flatr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['a plain, a level piece of ground'] | I:['Even', 'Flat'])"}
+{"ref": "old-norse:hlíth", "into": "old-norse:hlíð", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Hill slope', 'Hillside'] | I:['A slope, a hill-side.'])"}
+{"ref": "old-norse:krok", "into": "old-norse:krókr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['winding', 'winding, bend, corner'] | I:['A crook, a bend; usually denoting land in the bend of a river, but sometimes a nook, a secluded corner of land.', 'River bend'])"}
+{"ref": "old-norse:rum", "into": "old-norse:rúm", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['a clearing'] | I:['Room, space, an open space, a clearing.'])"}
+{"ref": "old-norse:tarn", "into": "old-norse:tjǫrn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['mountain lake'] | I:['A tarn, a small lake.'])"}
+{"ref": "old-norse:tun", "into": "old-norse:tún", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['farm', 'homestead, enclosure'] | I:['An enclosure, a farmstead.', 'Enclosure'])"}
+{"ref": "old-norse:vithr", "into": "old-norse:viðr", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['tree, wood'] | I:['A wood; or a tree, a tree-trunk.'])"}
+{"ref": "old-norse:weit", "into": "old-norse:þveit", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['clearing'] | I:['A clearing, a meadow, a paddock.'])"}
+{"ref": "old-english:clenc", "into": "old-english:canc", "verdict": "REVERT", "rationale": "'possibly a hill' (uncertain gloss) folded into canc; distinct surface (clenc/canc), medium conf (D46)"}
+{"ref": "old-english:cylfe", "into": "old-english:clif", "verdict": "REVERT", "rationale": "'probably a prow/eminence' (uncertain gloss) vs clif = cliff; distinct surface, medium conf (D46)"}
+{"ref": "old-english:coppede", "into": "old-english:cropp", "verdict": "REVERT", "rationale": "coppede = 'peaked' (adj. from copp = summit/top) vs cropp = crop/sprout/craw; distinct words, medium conf (D46)"}
+{"ref": "old-english:hoyle", "into": "old-english:holh", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['hole, hollow, lake'] | I:['hole; hollow, valley', 'hollow'])"}
+{"ref": "old-english:wealle", "into": "old-english:wal", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['wall'] | I:['a wall, a steep hill, cliff', 'alternative form of wæl'])"}
+{"ref": "old-english:wester", "into": "old-english:westan", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['West, western.'] | I:['West, west of.'])"}
+{"ref": "old-english:byxe", "into": "old-english:box", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A box-tree; a box-thicket.', 'Box trees'] | I:['A box-tree.', 'box tree'])"}
+{"ref": "old-english:doun", "into": "old-english:dūn", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['lower down'] | I:['A hill.', 'Hill'])"}
+{"ref": "old-english:ylme", "into": "old-english:elm", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['An elm-tree, an elm wood.'] | I:['An elm-tree.', 'elm'])"}
+{"ref": "old-english:heópe", "into": "old-english:hēope", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Rose hip'] | I:['The fruit of the wild rose, a hip.'])"}
+{"ref": "old-english:haus", "into": "old-english:hūs", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Cottage', 'Dwelling'] | I:['A house; also sometimes used of a building for special purposes.'])"}
+{"ref": "old-english:hous", "into": "old-english:hūs", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['house'] | I:['A house; also sometimes used of a building for special purposes.'])"}
+{"ref": "old-english:huse", "into": "old-english:hūs", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['house'] | I:['A house; also sometimes used of a building for special purposes.'])"}
+{"ref": "old-english:miis(a)", "into": "old-english:mūs", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['field-mouse or field-mice'] | I:['A mouse, a field-mouse.', 'Mice'])"}
+{"ref": "old-english:mær", "into": "old-english:mǣre", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['boundary', 'farm'] | I:['A boundary, a border; (in field names) the balk of a ploughland.'])"}
+{"ref": "old-english:awic", "into": "old-english:wīc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['dwelling-place'] | I:['A dwelling; a building or collection of buildings for special purposes; a farm, a dairy farm; a trading or industrial settlement; or (in the plural) a hamlet, village.', 'Dairy farm'])"}
+{"ref": "old-norse:eski", "into": "old-norse:aska", "verdict": "REVERT", "rationale": "eski = ash-tree place / ash-wood vs aska = ashes/burnt residue; distinct referents (same class as ask->aska)"}
+{"ref": "old-english:clean", "into": "old-english:clǣne", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['free from weeds or barren'] | I:['Clean, clear of weeds, etc.'])"}
+{"ref": "old-english:caers", "into": "old-english:cærse", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Water cress'] | I:['Cress, water-cress.', 'Cress, water-cress.; Carey'])"}
+{"ref": "old-english:faegr", "into": "old-english:fæger", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['Clear', 'Fair'] | I:['Fair, beautiful, pleasant.'])"}
+{"ref": "old-english:þaca", "into": "old-english:þæc", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A roof, a covering (of thatch).'] | I:['Thatch, material for thatching, a thatched roof.'])"}
+{"ref": "latin:castra", "into": "latin:castrum", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['fort, camp'] | I:['Castle.', 'fort'])"}
+{"ref": "old-english:byr", "into": "old-english:byre", "verdict": "REVERT", "rationale": "byr = birch (birce) vs byre = byre/cow-shelter; distinct OE etymologies folded on a contaminated 'birch tree' gloss + near-surface (D46)"}
+{"ref": "old-english:grǣfe", "into": "old-english:grāf", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['A grove, a copse, a thicket.'] | I:['A grove, a copse.', 'Copse'])"}
+{"ref": "old-english:helde", "into": "old-english:hlid", "verdict": "REVERT", "rationale": "helde = hielde (slope/incline) vs hlid = lid/swing-gate (+slope); distinct words, divergent surface, medium conf (D46)"}
+{"ref": "old-english:pluma", "into": "old-english:plūme", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['plum-tree'] | I:['A plum; a plum-tree.', 'Plum tree'])"}
+{"ref": "old-english:scedt", "into": "old-english:sceat", "verdict": "KEEP", "rationale": "same morpheme — inflection/spelling-OCR variant or shared primary sense (R:['corner', 'corner, division, portion, tract'] | I:['corner of land', 'settlement'])"}
+{"ref": "latin:locum", "into": "latin:locus", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['place']"}
+{"ref": "modern-english:feld", "into": "modern-english:field", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['field']"}
+{"ref": "modern-english:gaitrys", "into": "modern-english:gaiter", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wild dogwood-tree']"}
+{"ref": "old-english:beile", "into": "old-english:belle", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bell']"}
+{"ref": "old-english:berga", "into": "old-english:beorg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['barrow', 'hill']"}
+{"ref": "old-english:bare", "into": "old-english:bere", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['barley']"}
+{"ref": "old-english:blec", "into": "old-english:blæc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['black']"}
+{"ref": "old-english:brame", "into": "old-english:bremel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bramble']"}
+{"ref": "old-english:brock", "into": "old-english:brocc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['badger']"}
+{"ref": "old-english:brdc", "into": "old-english:brōc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['brook']"}
+{"ref": "old-english:burgh", "into": "old-english:burg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['fortified place']"}
+{"ref": "old-english:bury", "into": "old-english:burg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['fort', 'fortified place']"}
+{"ref": "old-english:bourn", "into": "old-english:burna", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stream']"}
+{"ref": "old-english:burn", "into": "old-english:burna", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['brook', 'burn', 'stream']"}
+{"ref": "old-english:cold", "into": "old-english:cald", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cold']"}
+{"ref": "old-english:cat", "into": "old-english:catt", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cat']"}
+{"ref": "old-english:chester", "into": "old-english:ceaster", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['fort']"}
+{"ref": "old-english:ceorra(n)", "into": "old-english:ceorran", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss [\"ceorra's\"]"}
+{"ref": "old-english:knoll", "into": "old-english:cnoll", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill', 'knoll']"}
+{"ref": "old-english:knolle", "into": "old-english:cnoll", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['knoll']"}
+{"ref": "old-english:cof", "into": "old-english:cofa", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cottage']"}
+{"ref": "old-english:cross", "into": "old-english:cros", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cross']"}
+{"ref": "old-english:crosse", "into": "old-english:cros", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cross']"}
+{"ref": "old-english:crǣwe", "into": "old-english:crāwe", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['crow']"}
+{"ref": "old-english:eland", "into": "old-english:ealand", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['island']"}
+{"ref": "old-english:fern", "into": "old-english:fearn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['fern']"}
+{"ref": "old-english:feud", "into": "old-english:feld", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['field']"}
+{"ref": "old-english:finch", "into": "old-english:finc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['finch']"}
+{"ref": "old-english:fora", "into": "old-english:forð", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ford']"}
+{"ref": "old-english:gate", "into": "old-english:geat", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['gate']"}
+{"ref": "old-english:geatt", "into": "old-english:geat", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['gate']"}
+{"ref": "old-english:hali", "into": "old-english:halig", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['holy']"}
+{"ref": "old-english:hdlig", "into": "old-english:halig", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['holy']"}
+{"ref": "old-english:hare", "into": "old-english:hara", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hare']"}
+{"ref": "old-english:h(e)alh", "into": "old-english:healh", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['nook of land']"}
+{"ref": "old-english:healk", "into": "old-english:healh", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['corner or meadow']"}
+{"ref": "old-english:hall", "into": "old-english:heall", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hall']"}
+{"ref": "old-english:halle", "into": "old-english:heall", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hall']"}
+{"ref": "old-english:hecc", "into": "old-english:hecg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hatch gate', 'hedge gate']"}
+{"ref": "old-english:hegh", "into": "old-english:heh", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['high']"}
+{"ref": "old-english:herut", "into": "old-english:heorot", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stag']"}
+{"ref": "old-english:hlido", "into": "old-english:hlid", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['slope']"}
+{"ref": "old-english:hliy", "into": "old-english:hlid", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['slope']"}
+{"ref": "old-english:hlēg", "into": "old-english:hlēo", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['refuge', 'retreat', 'sanctuary']"}
+{"ref": "old-english:knutu", "into": "old-english:hnutu", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['nut']"}
+{"ref": "old-english:holan", "into": "old-english:hol", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hollow']"}
+{"ref": "old-english:hol(h)", "into": "old-english:holh", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hollow']"}
+{"ref": "old-english:hrecg", "into": "old-english:hrycg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ridge']"}
+{"ref": "old-english:hry eg", "into": "old-english:hrycg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ridge']"}
+{"ref": "old-english:hurst", "into": "old-english:hyrst", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood', 'wooded hill']"}
+{"ref": "old-english:eg", "into": "old-english:ieg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['island']"}
+{"ref": "old-english:langen", "into": "old-english:lang", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['long']"}
+{"ref": "old-english:léah", "into": "old-english:lēah", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['meadow', 'woodland clearing']"}
+{"ref": "old-english:micele", "into": "old-english:micel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['great']"}
+{"ref": "old-english:middle", "into": "old-english:midd", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['middle']"}
+{"ref": "old-english:mint", "into": "old-english:minte", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['mint']"}
+{"ref": "old-english:moor", "into": "old-english:more", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['moor']"}
+{"ref": "old-english:minster", "into": "old-english:mynster", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['minster']"}
+{"ref": "old-english:neu", "into": "old-english:ne", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['new']"}
+{"ref": "old-english:new", "into": "old-english:ne", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['new']"}
+{"ref": "old-english:newe", "into": "old-english:niwe", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['new']"}
+{"ref": "old-english:nlwe", "into": "old-english:niwe", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['new']"}
+{"ref": "old-english:nord", "into": "old-english:norþ", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['north']"}
+{"ref": "old-english:norp", "into": "old-english:norþ", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['north']"}
+{"ref": "old-english:over", "into": "old-english:ofer", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bank']"}
+{"ref": "old-english:peni(n)g", "into": "old-english:pening", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['penny']"}
+{"ref": "old-english:pirij", "into": "old-english:pirige", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pear-tree']"}
+{"ref": "old-english:pyrig", "into": "old-english:pirige", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pear-tree']"}
+{"ref": "old-english:pyrige", "into": "old-english:pirige", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pear-tree']"}
+{"ref": "old-english:predst", "into": "old-english:preost", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['priest']"}
+{"ref": "old-english:réad", "into": "old-english:rēad", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['red']"}
+{"ref": "old-english:salt", "into": "old-english:sealt", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['salt']"}
+{"ref": "old-english:secge", "into": "old-english:secg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['sedge']"}
+{"ref": "old-english:smid", "into": "old-english:smiþ", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['smith']"}
+{"ref": "old-english:steel", "into": "old-english:steall", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['place, a stall']"}
+{"ref": "old-english:stead", "into": "old-english:stede", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['place', 'stead']"}
+{"ref": "old-english:stiga", "into": "old-english:stig", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['path']"}
+{"ref": "old-english:stdn", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['rock', 'stone', 'stony']"}
+{"ref": "old-english:stán", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:ticce", "into": "old-english:ticcen", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['goat']"}
+{"ref": "old-english:tre", "into": "old-english:treow", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['tree']"}
+{"ref": "old-english:uppes", "into": "old-english:upp", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['upper']"}
+{"ref": "old-english:wiell", "into": "old-english:wel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['well']"}
+{"ref": "old-english:wichena", "into": "old-english:wice", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wych elm tree']"}
+{"ref": "old-english:wintey", "into": "old-english:winter", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['winter']"}
+{"ref": "old-english:porn", "into": "old-english:þorn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['thorn']"}
+{"ref": "old-english:ǣcen", "into": "old-english:ācen", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['oaken: growing with oak-trees, or made of oak']"}
+{"ref": "old-norse:dekkr", "into": "old-norse:bekkr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['brook']"}
+{"ref": "old-norse:bleik", "into": "old-norse:bleikr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pale']"}
+{"ref": "old-norse:dal-r", "into": "old-norse:dalr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['dale, valley']"}
+{"ref": "old-norse:ergh", "into": "old-norse:erg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['shieling']"}
+{"ref": "old-norse:gamel", "into": "old-norse:gamall", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['old']"}
+{"ref": "old-norse:gill", "into": "old-norse:gil", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ravine']"}
+{"ref": "old-norse:grdr", "into": "old-norse:grár", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['gray']"}
+{"ref": "old-norse:griss", "into": "old-norse:gríss", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pig']"}
+{"ref": "old-norse:holm", "into": "old-norse:holmr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['island', 'islet']"}
+{"ref": "old-norse:sholme", "into": "old-norse:holmr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['island']"}
+{"ref": "old-norse:hirkja", "into": "old-norse:kirkja", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['church']"}
+{"ref": "old-norse:kirk", "into": "old-norse:kirkja", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['church']"}
+{"ref": "old-norse:kirke", "into": "old-norse:kirkja", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['church']"}
+{"ref": "old-norse:kiarr", "into": "old-norse:kjarr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bog']"}
+{"ref": "old-norse:kunungr", "into": "old-norse:konungr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['king']"}
+{"ref": "old-norse:leax", "into": "old-norse:lax", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['salmon']"}
+{"ref": "old-norse:mickil", "into": "old-norse:mikill", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['great']"}
+{"ref": "old-norse:skégr", "into": "old-norse:skógr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['grove']"}
+{"ref": "old-norse:smior", "into": "old-norse:smjor", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['butter']"}
+{"ref": "old-norse:stain", "into": "old-norse:steinn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-norse:vest", "into": "old-norse:vestr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['western']"}
+{"ref": "old-norse:vestari", "into": "old-norse:vestr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['west']"}
+{"ref": "old-norse:vagr", "into": "old-norse:vágr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bay']"}
+{"ref": "old-norse:torp", "into": "old-norse:þorp", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['village']"}
+{"ref": "latin:manach", "into": "latin:monachus", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['monk']"}
+{"ref": "modern-english:lawe", "into": "modern-english:law", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:bergh", "into": "old-english:beorg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:heorge", "into": "old-english:beorg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:bara", "into": "old-english:bera", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bear']"}
+{"ref": "old-english:bule", "into": "old-english:bula", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bull']"}
+{"ref": "old-english:ciric", "into": "old-english:cirice", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['church']"}
+{"ref": "old-english:ciricle", "into": "old-english:cirice", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['church']"}
+{"ref": "old-english:cl&fre", "into": "old-english:clǣfre", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['clover']"}
+{"ref": "old-english:coll", "into": "old-english:cnoll", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:combe", "into": "old-english:comb", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['valley']"}
+{"ref": "old-english:dunnok", "into": "old-english:dunnoc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hedge-sparrow']"}
+{"ref": "old-english:fold", "into": "old-english:fald", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['enclosure']"}
+{"ref": "old-english:hwerfel", "into": "old-english:hwyrfel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['circle']"}
+{"ref": "old-english:hill", "into": "old-english:hyll", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:hull", "into": "old-english:hyll", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:rye", "into": "old-english:ryge", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['rye']"}
+{"ref": "old-english:rygen", "into": "old-english:ryge", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['rye']"}
+{"ref": "old-english:sceort", "into": "old-english:scort", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['short']"}
+{"ref": "old-english:st&n", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:worp", "into": "old-english:word", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['enclosure']"}
+{"ref": "old-english:wud", "into": "old-english:wudu", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood']"}
+{"ref": "old-english:wude", "into": "old-english:wudu", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood']"}
+{"ref": "old-english:amette", "into": "old-english:ǣmette", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ant']"}
+{"ref": "old-french:blanche", "into": "old-french:blanc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['white']"}
+{"ref": "old-norse:bergh", "into": "old-norse:berg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-norse:dale", "into": "old-norse:dalr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['valley']"}
+{"ref": "old-norse:gardr", "into": "old-norse:garðr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['enclosure']"}
+{"ref": "old-norse:garthr", "into": "old-norse:garðr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['enclosure']"}
+{"ref": "old-norse:grar", "into": "old-norse:grár", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['grey']"}
+{"ref": "old-norse:hout", "into": "old-norse:holt", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood']"}
+{"ref": "old-norse:raud-r", "into": "old-norse:rauðr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['red']"}
+{"ref": "old-norse:raudr", "into": "old-norse:rauðr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['red']"}
+{"ref": "old-norse:rauthr", "into": "old-norse:rauðr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['red']"}
+{"ref": "old-norse:rauði", "into": "old-norse:rauðr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['red']"}
+{"ref": "old-norse:skogr", "into": "old-norse:skógr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood']"}
+{"ref": "modern-english:stdn", "into": "modern-english:stone", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:bocen", "into": "old-english:bece", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['beech']"}
+{"ref": "old-english:bōthl", "into": "old-english:botl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['building']"}
+{"ref": "old-english:brada", "into": "old-english:brād", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['broad']"}
+{"ref": "old-english:brade", "into": "old-english:brād", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['broad']"}
+{"ref": "old-english:broad", "into": "old-english:brād", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['broad']"}
+{"ref": "old-english:brere", "into": "old-english:brēr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['briar']"}
+{"ref": "old-english:byrig", "into": "old-english:burg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['fort', 'fortified place']"}
+{"ref": "old-english:crow", "into": "old-english:crāwe", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['crow']"}
+{"ref": "old-english:culver", "into": "old-english:culfre", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood-pigeon']"}
+{"ref": "old-english:conyng", "into": "old-english:cuning", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['rabbit']"}
+{"ref": "old-english:dr$ge", "into": "old-english:drie", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['dry']"}
+{"ref": "old-english:del", "into": "old-english:dæl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['valley']"}
+{"ref": "old-english:dtc", "into": "old-english:dīc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ditch']"}
+{"ref": "old-english:ulm", "into": "old-english:elm", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['elm', 'elm-tree']"}
+{"ref": "old-english:fyrde", "into": "old-english:ford", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['drayage', 'ford', 'portage']"}
+{"ref": "old-english:grat", "into": "old-english:greot", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['gravel']"}
+{"ref": "old-english:gren", "into": "old-english:grēne", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['green']"}
+{"ref": "old-english:heges", "into": "old-english:hecg", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hedge']"}
+{"ref": "old-english:he(a)h", "into": "old-english:heh", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['high']"}
+{"ref": "old-english:hylde", "into": "old-english:hlid", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['slope']"}
+{"ref": "old-english:hoi", "into": "old-english:hol", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hole, burrow']"}
+{"ref": "old-english:hollow", "into": "old-english:hol", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hollow']"}
+{"ref": "old-english:hfoit", "into": "old-english:holt", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood']"}
+{"ref": "old-english:hross", "into": "old-english:hors", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['foal', 'horse', 'stud']"}
+{"ref": "old-english:huntere", "into": "old-english:hunta", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hunter']"}
+{"ref": "old-english:hulle", "into": "old-english:hyll", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hill']"}
+{"ref": "old-english:hemp", "into": "old-english:hænep", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hemp']"}
+{"ref": "old-english:hdm", "into": "old-english:hām", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['home', 'homestead']"}
+{"ref": "old-english:hám", "into": "old-english:hām", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['home', 'homestead']"}
+{"ref": "old-english:hdr", "into": "old-english:hār", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['boundary', 'grey']"}
+{"ref": "old-english:lln", "into": "old-english:līn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['flax']"}
+{"ref": "old-english:milne", "into": "old-english:myln", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['mill']"}
+{"ref": "old-english:maiden", "into": "old-english:mægden", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['maiden']"}
+{"ref": "old-english:m#d", "into": "old-english:mǣd", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['meadow']"}
+{"ref": "old-english:neuh", "into": "old-english:ne", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['new']"}
+{"ref": "old-english:pode", "into": "old-english:padde", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['toad']"}
+{"ref": "old-english:pel", "into": "old-english:pōl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pool']"}
+{"ref": "old-english:ramni", "into": "old-english:ramm", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ram']"}
+{"ref": "old-english:roð", "into": "old-english:row", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['clearing']"}
+{"ref": "old-english:sain", "into": "old-english:sanct", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['saint']"}
+{"ref": "old-english:sefel", "into": "old-english:setl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['seat']"}
+{"ref": "old-english:slicu", "into": "old-english:slīc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['sleek', 'smooth']"}
+{"ref": "old-english:stub", "into": "old-english:stybb", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stump']"}
+{"ref": "old-english:swine", "into": "old-english:swīn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pig']"}
+{"ref": "old-english:tree", "into": "old-english:treow", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['tree']"}
+{"ref": "old-english:ujp", "into": "old-english:upp", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['upper']"}
+{"ref": "old-english:wfc", "into": "old-english:wīc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['dwelling']"}
+{"ref": "old-english:wlc", "into": "old-english:wīc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['dwelling', 'village']"}
+{"ref": "old-english:wtc", "into": "old-english:wīc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['dwelling']"}
+{"ref": "old-english:thistl", "into": "old-english:þistel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['thistle']"}
+{"ref": "old-english:fiorn", "into": "old-english:þorn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['thorn']"}
+{"ref": "old-french:wit", "into": "old-french:uit", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['eight']"}
+{"ref": "old-norse:beck", "into": "old-norse:bekkr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['brook', 'stream']"}
+{"ref": "old-norse:brigg", "into": "old-norse:bryggja", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bridge']"}
+{"ref": "old-norse:aik", "into": "old-norse:eik", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['oak tree']"}
+{"ref": "old-norse:flad", "into": "old-norse:flatr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['flat']"}
+{"ref": "old-norse:har", "into": "old-norse:hár", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['high']"}
+{"ref": "old-norse:hdr", "into": "old-norse:hár", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['high']"}
+{"ref": "old-norse:hor", "into": "old-norse:hár", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['high']"}
+{"ref": "old-norse:cros", "into": "old-norse:kross", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cross']"}
+{"ref": "old-norse:netla", "into": "old-norse:nata", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['nettle']"}
+{"ref": "old-norse:va6", "into": "old-norse:vað", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ford']"}
+{"ref": "old-norse:vad", "into": "old-norse:vað", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ford']"}
+{"ref": "old-norse:vik", "into": "old-norse:vík", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bay']"}
+{"ref": "welsh:nen", "into": "welsh:nef", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['heaven']"}
+{"ref": "latin:belli", "into": "latin:bellus", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['beautiful']"}
+{"ref": "latin:cestr", "into": "latin:castrum", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['fort']"}
+{"ref": "old-english:cumba", "into": "old-english:comb", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['valley']"}
+{"ref": "old-english:crouche", "into": "old-english:cruc", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cross']"}
+{"ref": "old-english:hale", "into": "old-english:heall", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['hall']"}
+{"ref": "old-english:meed", "into": "old-english:medu", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['meadow']"}
+{"ref": "old-english:stein", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:stenn", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:stone", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:walatun", "into": "old-english:wala", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['britons']"}
+{"ref": "old-english:wealm", "into": "old-english:wel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['well']"}
+{"ref": "old-english:wielu", "into": "old-english:wel", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['well']"}
+{"ref": "old-english:cole", "into": "old-english:cōl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['cool']"}
+{"ref": "old-english:dew", "into": "old-english:dēaw", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['dew']"}
+{"ref": "old-english:deep", "into": "old-english:dēop", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['deep']"}
+{"ref": "old-english:foule", "into": "old-english:fūl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['foul']"}
+{"ref": "old-english:green", "into": "old-english:grēne", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['green']"}
+{"ref": "old-english:gos(a)", "into": "old-english:gōs", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['goose']"}
+{"ref": "old-english:*h8ema", "into": "old-english:hām", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['home']"}
+{"ref": "old-english:leen", "into": "old-english:līn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['flax']"}
+{"ref": "old-english:muir", "into": "old-english:mōr", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['moor']"}
+{"ref": "old-english:muse", "into": "old-english:mūs", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['mouse']"}
+{"ref": "old-english:pool", "into": "old-english:pōl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['pool']"}
+{"ref": "old-english:scepa", "into": "old-english:scēap", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['sheep']"}
+{"ref": "old-english:scipa", "into": "old-english:scēap", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['sheep']"}
+{"ref": "old-english:sate", "into": "old-english:set", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['seat']"}
+{"ref": "old-english:stoce", "into": "old-english:staca", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stake']"}
+{"ref": "old-english:tona", "into": "old-english:tūn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['town/settlement']"}
+{"ref": "old-english:tuna", "into": "old-english:tūn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['town']"}
+{"ref": "old-english:tune", "into": "old-english:tūn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['enclosure/settlement']"}
+{"ref": "old-english:wode", "into": "old-english:wudu", "verdict": "KEEP", "rationale": "clear variant — same cognate cluster"}
+{"ref": "old-english:wood", "into": "old-english:wudu", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['wood']"}
+{"ref": "old-norse:bula", "into": "old-norse:boli", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bull', 'calf', 'cattle']"}
+{"ref": "old-english:dale", "into": "old-english:dæl", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['valley']"}
+{"ref": "old-english:wade", "into": "old-english:wæd", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['ford']"}
+{"ref": "old-english:biscopes", "into": "old-english:biscop", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['bishop']"}
+{"ref": "old-english:bissopes", "into": "old-english:biscop", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss [\"bishop's\"]"}
+{"ref": "old-english:grdfe", "into": "old-english:grāf", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['grove']"}
+{"ref": "old-english:hréod", "into": "old-english:hrēod", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['reed']"}
+{"ref": "old-english:sett", "into": "old-english:sceat", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['settlement']"}
+{"ref": "old-english:stain", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone', 'stony']"}
+{"ref": "old-english:stane", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:stayn", "into": "old-english:stān", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['stone']"}
+{"ref": "old-english:ton", "into": "old-english:tūn", "verdict": "KEEP", "rationale": "clear variant — identical meaning-bearing gloss ['farm', 'farm/settlement', 'farmstead']"}
