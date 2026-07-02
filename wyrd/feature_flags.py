@@ -30,16 +30,7 @@ from __future__ import annotations
 
 import math
 import os
-import re
 from collections.abc import Mapping
-
-# Leading optional-sign integer, mirroring JS ``parseInt(raw, 10)``: it parses
-# the leading run of digits and ignores any trailing fractional/garbage part
-# (``parseInt('5.0', 10) === 5``, ``parseInt('5px', 10) === 5``). ASCII ``[0-9]``,
-# NOT ``\d``: ``\d`` also matches Unicode digits (Arabic-Indic ``١٢٣``, Devanagari)
-# which ``int()`` would then accept, but JS ``parseInt`` is ASCII-only and yields
-# NaN there — so ``\d`` would re-introduce a server/SPA divergence, not close one.
-_LEADING_INT_RE = re.compile(r"[+-]?[0-9]+")
 
 _FF_PREFIX = "WYRD_FF_"
 _DEFAULT_PREFIX = "WYRD_DEFAULT_"
@@ -85,27 +76,53 @@ def resolve_feature_config(env: Mapping[str, str] | None = None) -> dict:
     return {"all": all_on, "flags": flags, "defaults": defaults}
 
 
+def _coerce_int(text: str) -> int | None:
+    """Coerce a stripped string to an int with SPA-``coerceToType`` parity
+    (wyrd-8uuq): accept a plain integer or an *integral* float ("5"/"5.0" → 5);
+    reject non-integers, trailing garbage, non-finite typos, and non-ASCII
+    digits ("5.5"/"3abc"/"12px"/"Infinity"/"١٢٣" → None) so slider and
+    generation agree in BOTH directions.
+
+    Mirrors the SPA's ``Number(raw)`` + ``Number.isInteger`` path. ASCII-only,
+    because Python ``int``/``float`` accept Unicode digits (Arabic-Indic ``١٢٣``,
+    Devanagari) that JS ``Number`` yields NaN for — parsing them here would
+    RE-INTRODUCE a server/SPA divergence rather than close one."""
+    if not text or not text.isascii():
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        # Known case: not a plain integer (e.g. "5.0"). Fall through and try it
+        # as an integral float below; None is returned only if BOTH parses fail.
+        pass
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(value) or not value.is_integer():
+        return None
+    return int(value)
+
+
 def _coerce_to_schema_type(raw: str, prop: Mapping) -> object | None:
     """Coerce a ``WYRD_DEFAULT_*`` string to an option's JSON-schema type.
 
     The server-side mirror of the SPA's ``featureFlags.coerceToType``. Returns
     ``None`` for an empty/uncoercible value or an ``array`` option, so the
     caller falls back to the option's own schema default rather than seeding
-    garbage (matches the SPA, which returns ``undefined`` in those cases)."""
+    garbage (matches the SPA, which returns ``undefined`` in those cases).
+    Integer coercion is delegated to :func:`_coerce_int`."""
     schema_type = (prop or {}).get("type")
     if schema_type == "array":
         return None
     if schema_type == "integer":
-        # Mirror the SPA's ``parseInt(raw, 10)``: take the leading optional-sign
-        # integer, ignoring a trailing fractional/garbage part ("5.0"→5, "5px"→5).
-        # Plain ``int(text)`` rejects those (ValueError) and falls back to the
-        # schema default while the SPA seeds the parsed number — exactly the
-        # wyrd-7f22 SPA/server mismatch this module exists to prevent.
-        m = _LEADING_INT_RE.match(str(raw).strip())
-        return int(m.group()) if m is not None else None
+        return _coerce_int(str(raw).strip())
     if schema_type == "number":
         text = str(raw).strip()
-        if not text:
+        # ASCII-only for the same reason as _coerce_int (wyrd-8uuq): Python
+        # float() accepts Unicode digits (float("١٢٣") == 123.0) that JS Number()
+        # rejects as NaN — guard so the number path keeps server/SPA parity too.
+        if not text or not text.isascii():
             return None
         try:
             value = float(text)

@@ -109,8 +109,38 @@ describe('coerceToType', () => {
     expect(coerceToType('Infinity', { type: 'number' })).toBeUndefined();
     expect(coerceToType('-Infinity', { type: 'number' })).toBeUndefined();
     expect(coerceToType('1e999', { type: 'number' })).toBeUndefined();
-    // The integer path (parseInt) never yields Infinity — still finite-or-undefined.
+    // The integer path uses Number(raw) + Number.isInteger, which is false for
+    // NaN and ±Infinity — so 'Infinity' rejects on this path too.
     expect(coerceToType('5', { type: 'integer' })).toBe(5);
+    expect(coerceToType('Infinity', { type: 'integer' })).toBeUndefined();
+  });
+
+  // The shared server/SPA integer-coercion parity vector (wyrd-8uuq). The
+  // server's tests/test_feature_flags.py::test_integer_coercion_parity_vector
+  // asserts the SAME (input → outcome) list against _coerce_to_schema_type, so
+  // slider (seeded from a WYRD_DEFAULT) and generation never disagree. Here
+  // `undefined` == the server's `None` (fall back to the schema default).
+  it('converges integer coercion with the server (wyrd-8uuq parity vector)', () => {
+    const intp = { type: 'integer' };
+    const vector = [
+      ['5', 5],
+      ['5.0', 5], // integral float → accepted (the decimal-styled WYRD_DEFAULT)
+      ['5.5', undefined], // non-integral → rejected (was 5 under lenient parseInt)
+      ['3abc', undefined], // trailing garbage → rejected (was 3 under parseInt)
+      ['12px', undefined], // trailing garbage → rejected (was 12)
+      ['-3.9', undefined], // non-integral → rejected (was -3)
+      ['', undefined],
+      ['-2', -2],
+      [' 7 ', 7],
+      ['Infinity', undefined],
+      ['NaN', undefined],
+      ['.5', undefined], // non-integral → rejected
+      ['١٢٣', undefined], // Arabic-Indic 123: Number(raw) → NaN (ASCII-only), reject
+      ['१२३', undefined], // Devanagari 123: same ASCII-only parity
+    ];
+    for (const [raw, expected] of vector) {
+      expect(coerceToType(raw, intp), raw).toBe(expected);
+    }
   });
 
   it('parses booleans with the same truthy set as the server', () => {
