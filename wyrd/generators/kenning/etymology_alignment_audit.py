@@ -303,31 +303,41 @@ def _audit_summary_lines(report: AuditReport) -> list[str]:
 
 
 def _audit_top_sources_lines(sorted_sources: list[SourceAuditResult], top_n: int) -> list[str]:
-    """Markdown table of the top sources by flag count (skips clean sources)."""
-    lines = [
+    """Markdown table of the top sources by flag count (skips clean sources), or
+    ``[]`` when the section would be empty — no flagged source within ``top_n``,
+    or ``top_n <= 0`` — so ``format_audit_report`` omits the header (wyrd-73ma)
+    rather than emit an orphaned '## Top sources by flag count' + empty table."""
+    rows = [
+        f"| `{s.source_id}` | {s.flagged_count} / {s.total_etymologies} | {s.flag_rate:.1f}% |"
+        for s in sorted_sources[:top_n]
+        if s.flagged_count > 0
+    ]
+    if not rows:
+        return []
+    return [
         "## Top sources by flag count",
         "",
         "| Source | Flagged / Total | Rate |",
         "| --- | ---: | ---: |",
+        *rows,
     ]
-    for s in sorted_sources[:top_n]:
-        if s.flagged_count == 0:
-            continue
-        lines.append(
-            f"| `{s.source_id}` | {s.flagged_count} / {s.total_etymologies} | {s.flag_rate:.1f}% |"
-        )
-    return lines
 
 
 def _audit_samples_lines(
     sorted_sources: list[SourceAuditResult], report: AuditReport, top_n: int
 ) -> list[str]:
-    """Per-source sample misses, or a placeholder when the corpus is clean."""
+    """Per-source sample misses, a placeholder when the corpus is clean, or ``[]``
+    when there ARE misses but ``top_n <= 0`` shows none — so the header isn't
+    emitted orphaned over an empty body (wyrd-73ma). The clean-corpus placeholder
+    is kept: it's an informative signal, not an empty section."""
     affected = [s for s in sorted_sources if s.flagged_count > 0]
     if not affected:
         return ["_No alignment misses detected._"]
+    shown = affected[:top_n]
+    if not shown:  # top_n <= 0: misses exist but none rendered → no orphaned header
+        return []
     lines = [f"## Samples (up to {report.sample_limit_per_source} per source)", ""]
-    for s in affected[:top_n]:
+    for s in shown:
         lines.append(f"### `{s.source_id}` ({s.flagged_count} flagged)")
         for f in s.samples:
             lines.append(
@@ -344,15 +354,22 @@ def _audit_samples_lines(
 def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
     """Markdown rendering. Ranks by absolute flag count (volume
     drives where operator work has highest payoff)."""
+    # Clamp so a NEGATIVE top_n suppresses the ranked sections rather than
+    # triggering Python's negative slicing (``list[:-1]`` returns all-but-last,
+    # not ``[]``) — the section helpers slice ``[:top_n]``, so ``top_n <= 0`` must
+    # mean "show none" (wyrd-73ma).
+    top_n = max(0, top_n)
     sorted_sources = sorted(
         report.sources,
         key=lambda s: (-s.flagged_count, -s.total_etymologies, s.source_id),
     )
-    lines = [
-        *_audit_summary_lines(report),
-        "",
-        *_audit_top_sources_lines(sorted_sources, top_n),
-        "",
-        *_audit_samples_lines(sorted_sources, report, top_n),
+    # Join only non-empty sections with a single blank line between them, so an
+    # empty top-sources / samples section leaves no orphaned header (wyrd-73ma).
+    # With all sections present this is byte-identical to the prior fixed layout.
+    sections = [
+        _audit_summary_lines(report),
+        _audit_top_sources_lines(sorted_sources, top_n),
+        _audit_samples_lines(sorted_sources, report, top_n),
     ]
-    return "\n".join(lines).rstrip() + "\n"
+    body = "\n\n".join("\n".join(section) for section in sections if section)
+    return body.rstrip() + "\n"
