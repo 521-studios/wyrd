@@ -23,6 +23,7 @@
 // renders them at a different period).
 
 import { rewindWithMorphemes } from '../api.js';
+import { accentFold } from '../accents.js';
 
 export const rewindTransform = {
   kind: 'rewind',
@@ -105,6 +106,33 @@ export const rewindTransform = {
       return renderings;
     };
 
+    // wyrd-warpsel: build the rewound morpheme AND pin the era-grid selection to
+    // the newly-warped cell. The rewound morpheme keeps its ORIGINAL
+    // `active_form_id` (the modern cell) via `...m`, so cellForSurface's
+    // id-first lookup would keep highlighting the OLD form after a time-warp —
+    // "time warp not selecting the newly chosen morpheme". Setting `_cellId`
+    // (+ `_lang`) to the warped cell — exactly what a manual grid swap does
+    // (swap.js) — moves the highlight to the chosen form. No pin when the warped
+    // form isn't in this morpheme's era_grid (leave the id-first fallback).
+    const langEq = (a, b) => (a || '').replace(/_/g, '-') === (b || '').replace(/_/g, '-');
+    const warpMorpheme = (m, rw) => {
+      const next = { ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) };
+      if (rw.language) next._lang = rw.language;
+      const target = accentFold(deStar(rw.form));
+      for (const section of m.era_grid || []) {
+        for (const stage of section?.stages || []) {
+          if (!langEq(stage?.language, rw.language)) continue;
+          for (const cell of stage?.forms || []) {
+            if (cell?.id && accentFold(cell?.form) === target) {
+              next._cellId = cell.id;
+              return next;
+            }
+          }
+        }
+      }
+      return next;
+    };
+
     // wyrd-refl2: align each rewound form back to its INPUT morpheme by the
     // STABLE `source_index` the server echoes (the flat position of the input
     // morpheme it came from). Keeping the input morpheme (`...m`) preserves its
@@ -132,7 +160,7 @@ export const rewindTransform = {
             .map((m) => {
               const rw = bySource.get(flat++);
               return rw
-                ? { ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) }
+                ? warpMorpheme(m, rw)
                 : null;
             })
             .filter(Boolean),
@@ -150,7 +178,7 @@ export const rewindTransform = {
             const rw = rewound[ri];
             if (rw && rw.form && normKey(rw.canonical) === normKey(m.usage)) {
               ri += 1;
-              kept.push({ ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) });
+              kept.push(warpMorpheme(m, rw));
             }
             // else: this input morpheme had no rewound counterpart → drop it.
           }

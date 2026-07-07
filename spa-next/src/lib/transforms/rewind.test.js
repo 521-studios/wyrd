@@ -84,3 +84,54 @@ describe('rewind aligns by stable source_index (wyrd-refl2)', () => {
     ]);
   });
 });
+
+describe('time-warp pins the era-grid selection to the warped cell (wyrd-warpsel)', () => {
+  beforeEach(() => rewindWithMorphemes.mockReset());
+
+  // A morpheme with a REAL era_grid: a modern cell (as generated) + an OE cell.
+  const gridState = {
+    name: 'Otterton',
+    morphemes_by_word: [
+      [
+        {
+          usage: '-ton',
+          active_form_id: 'modern-english:ton',
+          era_grid: [
+            {
+              family: 'english',
+              stages: [
+                { language: 'modern-english', forms: [{ id: 'modern-english:ton', form: 'ton' }] },
+                { language: 'old-english', forms: [{ id: 'old-english:tūn', form: 'tūn' }] },
+              ],
+            },
+          ],
+          renderings: {},
+        },
+      ],
+    ],
+  };
+
+  it('sets _cellId + _lang to the warped cell so cellForSurface highlights the new form', async () => {
+    rewindWithMorphemes.mockResolvedValue(
+      envelope([{ form: 'tūn', language: 'old-english', source_index: 0, canonical: 'ton' }]),
+    );
+    const out = await rewindTransform.apply(gridState, { era: 'oe-late' });
+    const m = out.morphemes_by_word.flat()[0];
+    expect(m.usage).toBe('tūn');
+    // the highlight pin now points at the OE cell, not the original modern one
+    expect(m._cellId).toBe('old-english:tūn');
+    expect(m._lang).toBe('old-english');
+    // active_form_id is still carried (identity preserved), but _cellId wins in
+    // cellForSurface's id-first precedence.
+    expect(m.active_form_id).toBe('modern-english:ton');
+  });
+
+  it('leaves no _cellId pin when the warped form is absent from the era_grid', async () => {
+    rewindWithMorphemes.mockResolvedValue(
+      envelope([{ form: 'zzz', language: 'old-english', source_index: 0, canonical: 'ton' }]),
+    );
+    const out = await rewindTransform.apply(gridState, { era: 'oe-late' });
+    const m = out.morphemes_by_word.flat()[0];
+    expect(m._cellId).toBeUndefined();
+  });
+});
