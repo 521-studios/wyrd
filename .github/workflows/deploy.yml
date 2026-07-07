@@ -85,7 +85,12 @@ jobs:
         # timing logs Kenning.generate emits — left to default INFO on
         # production. Flip in terraform/variables.tf if staging needs
         # to go quieter.
-        run: tofu apply -auto-approve -input=false -var="env=staging" -var="log_level=DEBUG"
+        # wyrd-ocs8: SnapStart is gated on the repo variable
+        # ENABLE_STAGING_SNAPSTART (default false → apply_on=None). Safe to flip
+        # on now that the "Prune old Lambda versions" step below is active
+        # (ENABLE_STAGING_VERSION_PRUNE), so snapshots stay bounded to
+        # current + prior instead of accumulating per-version (the incident).
+        run: tofu apply -auto-approve -input=false -var="env=staging" -var="log_level=DEBUG" -var="enable_snapstart=${{ vars.ENABLE_STAGING_SNAPSTART || 'false' }}"
 
       - name: Wait for SnapStart snapshot Active
         working-directory: terraform
