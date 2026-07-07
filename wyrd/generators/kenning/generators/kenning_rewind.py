@@ -264,11 +264,19 @@ def _meanings_from_supplied_words(
     def _norm(s: str) -> str:
         return s.strip("-").lower()
 
-    per_word: list[list[Meaning]] = []
+    # Each kept Meaning is paired with the flat index of the INPUT morpheme it
+    # was resolved from — the stable handle the SPA rewind transform aligns on
+    # (see _apply_meaning's source_index). flat_index advances for EVERY input
+    # morpheme (incl. usage-less / dropped ones) so it stays a faithful position
+    # in the flattened input the SPA also walks.
+    per_word: list[list[tuple[int, Meaning]]] = []
     missing: list[str] = []
+    flat_index = 0
     for word_morphs in supplied_words or []:
-        word_meanings: list[Meaning] = []
+        word_meanings: list[tuple[int, Meaning]] = []
         for morph in word_morphs or []:
+            idx = flat_index
+            flat_index += 1
             usage = morph.get("usage") if isinstance(morph, dict) else None
             if not usage:
                 continue
@@ -287,7 +295,7 @@ def _meanings_from_supplied_words(
                 # morpheme stored under several distinct dash-variants could
                 # diverge — a future pass could unify both on _resolve_surface.
                 ranked = _rank_siblings(candidates)
-                word_meanings.append(ranked[0] if ranked else candidates[0])
+                word_meanings.append((idx, ranked[0] if ranked else candidates[0]))
             else:
                 missing.append(usage)
         per_word.append(word_meanings)
@@ -298,6 +306,7 @@ def _apply_meaning(
     meaning: Meaning,
     target_language: str | None,
     morpheme_components: list[dict[str, Any]],
+    source_index: int | None = None,
 ) -> tuple[str, bool]:
     """wyrd-y9aa: per-morpheme render pipeline shared by both
     KenningRewind paths (trie-decomposed + supplied-words).
@@ -319,31 +328,41 @@ def _apply_meaning(
         form = meaning.usage.replace("-", "")
     form = form.strip("-")
     respelling = meaning.respelling_for(form, target_language) if target_language else None
-    morpheme_components.append(
-        {
-            "form": form,
-            "respelling": respelling,
-            "language": target_language,
-            # wyrd-7cvv: the morpheme's ORIGINAL modern usage, so a consumer
-            # (the SPA rewind transform) can align each rewound form back to
-            # the input morpheme it came from — and omit input morphemes the
-            # rewind dropped (no era reflex) rather than mismatch the rewound
-            # name against the full original morpheme set.
-            "canonical": meaning.usage,
-        }
-    )
+    component = {
+        "form": form,
+        "respelling": respelling,
+        "language": target_language,
+        # wyrd-7cvv: the morpheme's ORIGINAL modern usage, so a consumer
+        # (the SPA rewind transform) can align each rewound form back to
+        # the input morpheme it came from — and omit input morphemes the
+        # rewind dropped (no era reflex) rather than mismatch the rewound
+        # name against the full original morpheme set. Retained as the
+        # fallback alignment key for older SPA payloads.
+        "canonical": meaning.usage,
+    }
+    # wyrd-refl2: the STABLE flat index of the input morpheme this rewound form
+    # came from (supplied-words path only; None on the trie-decomposed path).
+    # The SPA rewind transform aligns on this index instead of matching
+    # canonical↔usage strings — the string match drifted under accent/transform
+    # edits, dropped morphemes, and fell back to bare morphemes with no era_grid
+    # / active_form_id, so the inspector couldn't show which forms were selected.
+    if source_index is not None:
+        component["source_index"] = source_index
+    morpheme_components.append(component)
     return form, _is_free_particle(meaning)
 
 
 def _meanings_to_word_pairs(
-    word_meanings: list[Meaning],
+    word_meanings: list[tuple[int, Meaning]],
     target_language: str | None,
     morpheme_components: list[dict[str, Any]],
 ) -> list[tuple[str, bool]]:
     """wyrd-y9aa: per-word iteration shape for the pre-picked-input
     path. Thin wrapper over ``_apply_meaning`` — no chunk-walking or
     str fallback since the upstream JSON shape only ever contains
-    Meaning-shaped entries."""
+    Meaning-shaped entries. Each entry carries the input morpheme's flat
+    ``source_index`` (wyrd-refl2) for stable SPA-side alignment."""
     return [
-        _apply_meaning(meaning, target_language, morpheme_components) for meaning in word_meanings
+        _apply_meaning(meaning, target_language, morpheme_components, source_index=idx)
+        for (idx, meaning) in word_meanings
     ]
