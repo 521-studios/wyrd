@@ -39,6 +39,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Literal, get_args
 
 # ---- phonological feature vector (kq7w.1 schema half) -------------------
@@ -672,3 +673,50 @@ class EmpiricalPriors:
     native: dict[NativePriorsKey, dict[str, float]] = field(default_factory=dict)
     loan_relationship: dict[LoanPriorsKey, dict[str, float]] = field(default_factory=dict)
     version: str = "unversioned"
+
+    @cached_property
+    def native_fallback_index(
+        self,
+    ) -> tuple[
+        dict[tuple[str, str, str], dict[str, float]],
+        dict[tuple[str, str], dict[str, float]],
+        dict[str, dict[str, float]],
+    ]:
+        """Reverse indices for the era/tag-wildcard native-priors fallback
+        levels, built once from ``native`` so the per-lemma lookups are O(1)
+        instead of an O(N_cells) scan per call (the empirical-baseline scorer
+        calls them tens of thousands of times per generate; on a full-corpus
+        bundle the scan dominated generation latency — wyrd-akov-adjacent perf
+        fix).
+
+        Three maps, each ``key -> {lemma_ref: max weight over the collapsed
+        dimensions}`` — exactly the maximum the scans computed:
+
+        * ``l2[(culture, position, tag)]`` — level 2, era wildcard
+          ``(c, p, t, *)`` (level 1 exact stays a direct ``native.get``).
+        * ``l3[(culture, position)]`` — level 3, ``(c, p, *, *)``.
+        * ``l4[culture]`` — level 4, ``(c, *, *, *)``.
+
+        Max-aggregation preserves the scans' ``best is None or v > best``
+        semantics exactly, via a ``not in`` first-seen check (correct for ANY
+        float weight — a ``.get(lemma, -inf)`` seed would drop a weight of
+        exactly ``-inf``, since ``-inf > -inf`` is False). This includes a
+        lemma stored at weight 0.0 (present, not absent): it lands in the index
+        and the lookup returns 0.0, not None, matching ``_native_lookup_*``'s
+        ``in``-check convention.
+        """
+        l2: dict[tuple[str, str, str], dict[str, float]] = {}
+        l3: dict[tuple[str, str], dict[str, float]] = {}
+        l4: dict[str, dict[str, float]] = {}
+        for (culture, position, tag, _era), cell in self.native.items():
+            d2 = l2.setdefault((culture, position, tag), {})
+            d3 = l3.setdefault((culture, position), {})
+            d4 = l4.setdefault(culture, {})
+            for lemma_ref, weight in cell.items():
+                if lemma_ref not in d2 or weight > d2[lemma_ref]:
+                    d2[lemma_ref] = weight
+                if lemma_ref not in d3 or weight > d3[lemma_ref]:
+                    d3[lemma_ref] = weight
+                if lemma_ref not in d4 or weight > d4[lemma_ref]:
+                    d4[lemma_ref] = weight
+        return l2, l3, l4
