@@ -286,9 +286,7 @@ def test_native_fallback_index_matches_scan_max_and_zero_edge():
     assert l4["english"]["oe:a"] == 9.0
     # 0.0 lands in the index (present), so the lookup returns 0.0 not None.
     assert l2[("english", "pre", "plant")]["oe:zero"] == 0.0
-    assert (
-        _native_lookup_tag_specific(priors, "oe:zero", "english", "pre", "plant", 950) == 0.0
-    )
+    assert _native_lookup_tag_specific(priors, "oe:zero", "english", "pre", "plant", 950) == 0.0
 
 
 # ---------- _loan_lookup_with_fallback ----------------------------------
