@@ -105,45 +105,74 @@ export const rewindTransform = {
       return renderings;
     };
 
-    let ri = 0;
-    const aligned = state.morphemes_by_word
-      .map((word) => {
-        const kept = [];
-        for (const m of word) {
-          const rw = rewound[ri];
-          if (rw && rw.form && normKey(rw.canonical) === normKey(m.usage)) {
-            ri += 1;
-            kept.push({ ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) });
-          }
-          // else: this input morpheme had no rewound counterpart → drop it.
-        }
-        return kept;
-      })
-      .filter((word) => word.length > 0);
+    // wyrd-refl2: align each rewound form back to its INPUT morpheme by the
+    // STABLE `source_index` the server echoes (the flat position of the input
+    // morpheme it came from). Keeping the input morpheme (`...m`) preserves its
+    // `era_grid` + `active_form_id` through the rewind, so the inspector still
+    // highlights which forms are selected. The prior alignment matched
+    // normKey(rw.canonical) === normKey(m.usage) — a string match that drifted
+    // under accent/transform edits, dropped morphemes, and fell back to bare
+    // morphemes with no id → nothing highlighted. Kept below as the fallback
+    // for older server responses that don't carry `source_index`.
+    const bySource = new Map();
+    for (const rw of rewound) {
+      if (rw && rw.form && Number.isInteger(rw.source_index)) bySource.set(rw.source_index, rw);
+    }
 
     let morphemes_by_word;
-    if (rewound.length > 0 && ri === rewound.length) {
-      // Clean alignment — every rewound form mapped back to an input morpheme
-      // (so `aligned` has at least one kept morpheme).
-      morphemes_by_word = aligned;
+    if (bySource.size > 0) {
+      // The SPA walks state.morphemes_by_word in the same flat order the server
+      // indexed (it IS the supplied-words input), so `flat` and source_index
+      // stay in lockstep — including for input morphemes the rewind dropped
+      // (no matching source_index → null → omitted).
+      let flat = 0;
+      morphemes_by_word = state.morphemes_by_word
+        .map((word) =>
+          word
+            .map((m) => {
+              const rw = bySource.get(flat++);
+              return rw
+                ? { ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) }
+                : null;
+            })
+            .filter(Boolean),
+        )
+        .filter((word) => word.length > 0);
+      if (!morphemes_by_word.length) morphemes_by_word = state.morphemes_by_word;
     } else {
-      // Alignment didn't fully consume the rewound list (canonical didn't
-      // line up — unexpected). Fall back to the rewound morphemes as a single
-      // word so the cards still AGREE with the rewound name (degraded: no
-      // meanings/sources, but never disjoint). If even that's empty, keep the
-      // original morphemes.
-      const flat = rewound
-        .filter((rw) => rw.form)
-        .map((rw) => {
-          const surface = deStar(rw.form);
-          const m = { usage: surface };
-          const langField = (rw.language || '').replace(/-/g, '_');
-          if (langField && rw.respelling) {
-            m.renderings = { [langField]: { [surface]: { reader_pronunciation: rw.respelling } } };
+      // Fallback: older server without source_index — the original
+      // canonical-string two-pointer alignment.
+      let ri = 0;
+      const aligned = state.morphemes_by_word
+        .map((word) => {
+          const kept = [];
+          for (const m of word) {
+            const rw = rewound[ri];
+            if (rw && rw.form && normKey(rw.canonical) === normKey(m.usage)) {
+              ri += 1;
+              kept.push({ ...m, usage: deStar(rw.form), renderings: withRespelling(m, rw) });
+            }
+            // else: this input morpheme had no rewound counterpart → drop it.
           }
-          return m;
-        });
-      morphemes_by_word = flat.length ? [flat] : state.morphemes_by_word;
+          return kept;
+        })
+        .filter((word) => word.length > 0);
+      if (rewound.length > 0 && ri === rewound.length) {
+        morphemes_by_word = aligned;
+      } else {
+        const flat = rewound
+          .filter((rw) => rw.form)
+          .map((rw) => {
+            const surface = deStar(rw.form);
+            const m = { usage: surface };
+            const langField = (rw.language || '').replace(/-/g, '_');
+            if (langField && rw.respelling) {
+              m.renderings = { [langField]: { [surface]: { reader_pronunciation: rw.respelling } } };
+            }
+            return m;
+          });
+        morphemes_by_word = flat.length ? [flat] : state.morphemes_by_word;
+      }
     }
     return { name: deStar(picked.result), morphemes_by_word };
   },

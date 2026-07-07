@@ -5919,7 +5919,8 @@ def test_rewind_supplied_words_resolves_positional_usage_dash_insensitively() ->
     meaning_db = {"-by": [by]}
 
     per_word, missing = _meanings_from_supplied_words([[{"usage": "by"}]], meaning_db)
-    assert per_word == [[by]]  # "by" → "-by" via fallback
+    # wyrd-refl2: each kept Meaning is paired with its input flat source_index.
+    assert per_word == [[(0, by)]]  # "by" → "-by" via fallback, input index 0
     assert missing == []
 
     # A genuinely-absent usage (no dash/case variant) still reports missing.
@@ -5946,9 +5947,31 @@ def test_rewind_supplied_words_anchors_on_ranked_canonical_sibling() -> None:
     meaning_db = {"-ton": [celtic, old_eng]}
 
     per_word, missing = _meanings_from_supplied_words([[{"usage": "-ton"}]], meaning_db)
-    # the function must return the SAME canonical _rank_siblings picks
-    assert per_word == [[_rank_siblings([celtic, old_eng])[0]]]
+    # the function must return the SAME canonical _rank_siblings picks, paired
+    # with the input flat source_index (wyrd-refl2).
+    assert per_word == [[(0, _rank_siblings([celtic, old_eng])[0])]]
     assert missing == []
+
+
+def test_rewind_supplied_words_source_index_spans_words_and_skips_drops() -> None:
+    """wyrd-refl2: each kept Meaning carries the FLAT index of the input morpheme
+    it resolved from — advancing across words AND past dropped (missing)
+    morphemes — so the SPA rewind transform aligns rewound forms back to their
+    inputs by a stable index (preserving each input morpheme's era_grid /
+    active_form_id, so the inspector still shows which forms are selected)
+    instead of the fragile canonical↔usage string match."""
+    from wyrd.generators.kenning.generators.kenning_rewind import _meanings_from_supplied_words
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    a = Meaning("a", tags=[], meanings=["x"], sources={"old_english": ["a"]})
+    c = Meaning("c", tags=[], meanings=["z"], sources={"old_english": ["c"]})
+    meaning_db = {"a": [a], "c": [c]}
+    # input flat order: a(0), b(1, missing), c(2) across two words.
+    per_word, missing = _meanings_from_supplied_words(
+        [[{"usage": "a"}, {"usage": "b"}], [{"usage": "c"}]], meaning_db
+    )
+    assert per_word == [[(0, a)], [(2, c)]]  # idx 1 (dropped "b") consumed but skipped
+    assert missing == ["b"]
 
 
 def test_rewind_from_morphemes_raises_on_empty_name(fresh_db: Path) -> None:
