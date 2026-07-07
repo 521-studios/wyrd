@@ -214,8 +214,11 @@ def _native_lookup_tag_specific(
 
     # Level 2: era wildcard (c, p, t, *) — O(1) via the prebuilt reverse
     # index (max weight over eras), replacing the per-call O(N_cells) scan.
+    # Explicit None-check rather than ``.get(key, {})`` so a miss doesn't
+    # allocate a throwaway dict on this hot per-candidate path.
     l2, _, _ = priors.native_fallback_index
-    return l2.get((culture, position, tag), {}).get(lemma_ref)
+    cell = l2.get((culture, position, tag))
+    return cell.get(lemma_ref) if cell is not None else None
 
 
 def _native_lookup_tag_independent(
@@ -228,11 +231,10 @@ def _native_lookup_tag_independent(
     3 + 4). Returns the weight when a tag-wildcard cell carries the
     lemma; None when no cell at any tag-wildcard specificity has it.
 
-    Computed in a single pass over ``priors.native.items()`` — both
-    levels 3 (c, p, *, *) and 4 (c, *, *, *) are filterable from the
-    same iteration, with separate ``best`` trackers per level.
-    Level 3 wins when matched (more specific); level 4 only applies
-    when level 3 found nothing.
+    Resolved via the prebuilt reverse indices (levels 3 and 4 of
+    ``native_fallback_index``) — an O(1) dict get per level, replacing
+    the former O(N_cells) single-pass scan. Level 3 wins when matched
+    (more specific); level 4 only applies when level 3 found nothing.
 
     Tag-independent by design: levels 3 + 4 wildcard the tag
     dimension, so the result is a function of
@@ -240,13 +242,17 @@ def _native_lookup_tag_independent(
     a lemma's tags should call this once, outside the per-tag loop.
     """
     # Levels 3 (c, p, *, *) and 4 (c, *, *, *) — O(1) via the prebuilt
-    # reverse indices (max weight), replacing the per-call O(N_cells) scan.
-    # Level 3 wins when matched; level 4 is the fallback.
+    # reverse indices (max weight). Explicit None-checks rather than
+    # ``.get(key, {})`` so a miss doesn't allocate a throwaway dict on this
+    # hot path. Level 3 wins when matched; level 4 is the fallback.
     _, l3, l4 = priors.native_fallback_index
-    best_l3 = l3.get((culture, position), {}).get(lemma_ref)
-    if best_l3 is not None:
-        return best_l3
-    return l4.get(culture, {}).get(lemma_ref)
+    d3 = l3.get((culture, position))
+    if d3 is not None:
+        best_l3 = d3.get(lemma_ref)
+        if best_l3 is not None:
+            return best_l3
+    d4 = l4.get(culture)
+    return d4.get(lemma_ref) if d4 is not None else None
 
 
 def _native_lookup_with_fallback(  # noqa: V103 — public single-tag entry point; tests pin the level-priority contract (PR #498 triage)
