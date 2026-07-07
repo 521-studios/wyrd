@@ -206,16 +206,18 @@ resource "aws_lambda_function" "api" {
   handler          = "wyrd.lambda_handler.handler"
   runtime          = "python3.12"
   architectures    = ["arm64"]
-  # 1769MB is the Lambda inflection point where the function gets a
-  # full vCPU (below that, CPU is fractional and scales linearly with
-  # memory). The cold-start bundle-load (SQLite walk → bundle dict →
-  # Meaning objects → NameGenerator) takes ~3.7s on a full vCPU; on
-  # the previous 512MB / ~1/6 vCPU config it ballooned to ~20s and
-  # hit the 10s timeout wall on every cold start. Lazy-loading is the
-  # proper architectural fix (only fetch the morphemes the request
-  # actually samples); until then, the memory bump is what keeps the
-  # generator on the right side of the timeout budget.
-  memory_size      = 1769
+  # 1769MB was the full-vCPU inflection point, bumped there so the ~3.7s
+  # cold-start bundle-load (SQLite walk → bundle dict → Meaning objects →
+  # NameGenerator) survived the timeout — at 512MB / ~1/6 vCPU it ballooned to
+  # ~20s. SnapStart (wyrd-ocs8) now amortizes that load into the snapshot
+  # (restore ~1s, bundle already resident), so the full-vCPU-for-cold-load
+  # rationale is gone. What remains binding is the RAM floor: measured
+  # Max Memory Used ≈ 1233MB (the deserialized bundle graph). 1536MB keeps
+  # ~300MB over that floor while shrinking the SnapStart snapshot (≈ memory_size,
+  # ×2 retained versions) and the per-invoke billed GB-ms; #888 made per-name
+  # generation fast (~130ms) so the lost fractional CPU is well within budget.
+  # The real lever is lazy-loading to cut the 1233MB floor (wyrd ticket).
+  memory_size      = 1536
   timeout          = 15
 
   # wyrd-ocs8: SnapStart is gated behind var.enable_snapstart (DEFAULT OFF).
