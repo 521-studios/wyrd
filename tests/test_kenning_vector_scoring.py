@@ -22,6 +22,7 @@ from wyrd.generators.kenning.vectors.schemas import (
 from wyrd.generators.kenning.vectors.scoring import (
     _loan_lookup_with_fallback,
     _native_lookup_exact,
+    _native_lookup_tag_specific,
     _native_lookup_with_fallback,
     aggregate_score,
     baseline_score,
@@ -258,6 +259,36 @@ def test_native_fallback_different_culture_does_not_leak():
         }
     )
     assert _native_lookup_with_fallback(priors, "welsh:tref", "english", "pre", "plant", 950) == 0.0
+
+
+def test_native_fallback_index_matches_scan_max_and_zero_edge():
+    """The ``native_fallback_index`` reverse maps (the O(1) replacement for the
+    per-call O(N_cells) fallback scans) hold the SAME max the scans computed,
+    across every collapsed dimension, including a lemma stored at weight 0.0
+    (present, not absent). Guards the perf fix's parity contract directly."""
+    priors = EmpiricalPriors(
+        native={
+            # same (c, p, t) across eras → l2 max = 8.0
+            ("english", "pre", "plant", 1300): {"oe:a": 3.0, "oe:zero": 0.0},
+            ("english", "pre", "plant", 1600): {"oe:a": 8.0},
+            # different tag, same (c, p) → l3 must see both plant + tree → max 6
+            ("english", "pre", "tree", 950): {"oe:a": 6.0},
+            # different position, same culture → only l4 (c, *, *, *) sees it → 9
+            ("english", "post", "water", 1600): {"oe:a": 9.0},
+        }
+    )
+    l2, l3, l4 = priors.native_fallback_index
+    # Level 2: era wildcard max over (english, pre, plant).
+    assert l2[("english", "pre", "plant")]["oe:a"] == 8.0
+    # Level 3: (english, pre) max over all tags/eras = max(8, 6) = 8.
+    assert l3[("english", "pre")]["oe:a"] == 8.0
+    # Level 4: (english) max over everything incl. the post/water cell = 9.
+    assert l4["english"]["oe:a"] == 9.0
+    # 0.0 lands in the index (present), so the lookup returns 0.0 not None.
+    assert l2[("english", "pre", "plant")]["oe:zero"] == 0.0
+    assert (
+        _native_lookup_tag_specific(priors, "oe:zero", "english", "pre", "plant", 950) == 0.0
+    )
 
 
 # ---------- _loan_lookup_with_fallback ----------------------------------

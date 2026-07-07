@@ -39,6 +39,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Literal, get_args
 
 # ---- phonological feature vector (kq7w.1 schema half) -------------------
@@ -672,3 +673,48 @@ class EmpiricalPriors:
     native: dict[NativePriorsKey, dict[str, float]] = field(default_factory=dict)
     loan_relationship: dict[LoanPriorsKey, dict[str, float]] = field(default_factory=dict)
     version: str = "unversioned"
+
+    @cached_property
+    def native_fallback_index(
+        self,
+    ) -> tuple[
+        dict[tuple[str, str, str], dict[str, float]],
+        dict[tuple[str, str], dict[str, float]],
+        dict[str, dict[str, float]],
+    ]:
+        """Reverse indices for the era/tag-wildcard native-priors fallback
+        levels, built once from ``native`` so the per-lemma lookups are O(1)
+        instead of an O(N_cells) scan per call (the empirical-baseline scorer
+        calls them tens of thousands of times per generate; on a full-corpus
+        bundle the scan dominated generation latency — wyrd-akov-adjacent perf
+        fix).
+
+        Three maps, each ``key -> {lemma_ref: max weight over the collapsed
+        dimensions}`` — exactly the maximum the scans computed:
+
+        * ``l2[(culture, position, tag)]`` — level 2, era wildcard
+          ``(c, p, t, *)`` (level 1 exact stays a direct ``native.get``).
+        * ``l3[(culture, position)]`` — level 3, ``(c, p, *, *)``.
+        * ``l4[culture]`` — level 4, ``(c, *, *, *)``.
+
+        Max-aggregation preserves the scans' ``v > best`` semantics, including
+        a lemma stored at weight 0.0 (present, not absent): ``0.0`` beats the
+        ``-inf`` seed, so it lands in the index and the lookup returns 0.0
+        (not None), matching ``_native_lookup_*``'s ``in``-check convention.
+        """
+        neg_inf = float("-inf")
+        l2: dict[tuple[str, str, str], dict[str, float]] = {}
+        l3: dict[tuple[str, str], dict[str, float]] = {}
+        l4: dict[str, dict[str, float]] = {}
+        for (culture, position, tag, _era), cell in self.native.items():
+            d2 = l2.setdefault((culture, position, tag), {})
+            d3 = l3.setdefault((culture, position), {})
+            d4 = l4.setdefault(culture, {})
+            for lemma_ref, weight in cell.items():
+                if weight > d2.get(lemma_ref, neg_inf):
+                    d2[lemma_ref] = weight
+                if weight > d3.get(lemma_ref, neg_inf):
+                    d3[lemma_ref] = weight
+                if weight > d4.get(lemma_ref, neg_inf):
+                    d4[lemma_ref] = weight
+        return l2, l3, l4

@@ -212,14 +212,10 @@ def _native_lookup_tag_specific(
     if exact is not None:
         return exact
 
-    # Level 2: era wildcard. (c, p, t, *)
-    best: float | None = None
-    for (c, p, t, _e), cell in priors.native.items():
-        if c == culture and p == position and t == tag and lemma_ref in cell:
-            v = cell[lemma_ref]
-            if best is None or v > best:
-                best = v
-    return best
+    # Level 2: era wildcard (c, p, t, *) — O(1) via the prebuilt reverse
+    # index (max weight over eras), replacing the per-call O(N_cells) scan.
+    l2, _, _ = priors.native_fallback_index
+    return l2.get((culture, position, tag), {}).get(lemma_ref)
 
 
 def _native_lookup_tag_independent(
@@ -243,23 +239,14 @@ def _native_lookup_tag_independent(
     (lemma_ref, culture, position) only — callers that iterate over
     a lemma's tags should call this once, outside the per-tag loop.
     """
-    best_l3: float | None = None
-    best_l4: float | None = None
-    for (c, p, _t, _e), cell in priors.native.items():
-        if c != culture or lemma_ref not in cell:
-            continue
-        v = cell[lemma_ref]
-        # Level 3 match: (culture, position, *, *) — same culture AND
-        # same position. Conditions combined to satisfy SIM102.
-        if p == position and (best_l3 is None or v > best_l3):
-            best_l3 = v
-        # Level 4 match: (culture, *, *, *) — same row qualifies on
-        # culture alone, regardless of position.
-        if best_l4 is None or v > best_l4:
-            best_l4 = v
+    # Levels 3 (c, p, *, *) and 4 (c, *, *, *) — O(1) via the prebuilt
+    # reverse indices (max weight), replacing the per-call O(N_cells) scan.
+    # Level 3 wins when matched; level 4 is the fallback.
+    _, l3, l4 = priors.native_fallback_index
+    best_l3 = l3.get((culture, position), {}).get(lemma_ref)
     if best_l3 is not None:
         return best_l3
-    return best_l4
+    return l4.get(culture, {}).get(lemma_ref)
 
 
 def _native_lookup_with_fallback(  # noqa: V103 — public single-tag entry point; tests pin the level-priority contract (PR #498 triage)
