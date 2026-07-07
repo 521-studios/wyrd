@@ -3989,12 +3989,21 @@ Old French), and any future cross-family cognate case.
 
 ## D55. Case is a RENDER concern, never a storage format — for ANY morpheme surface (wyrd-refl-case, 2026-07-07).
 
-**Case is added at render time; it is never stored for anything.** No stored
-surface — morpheme identity (`usage_key`, `morpheme_id`), etymon
-`canonical_form`, reflex forms, spelling variants, era-grid cells — carries case.
-The renderer re-applies capitalization by position (a name's head capitalizes,
-a `-ton` suffix stays lower), exactly as it already does for the case-folded
-meaning identity.
+**The invariant: case is added at render time; it is not a storage format for
+anything.** No stored surface should carry case — morpheme identity (`usage_key`,
+`morpheme_id`), etymon `canonical_form`, reflex forms, spelling variants,
+era-grid cells. The renderer re-applies capitalization by position (a name's head
+capitalizes, a `-ton` suffix stays lower), exactly as it already does for the
+case-folded meaning identity.
+
+**Rollout status (this is a partially-materialized invariant, not a done fact).**
+D53 folded morpheme *identity* (`usage_key` + proportions). This entry adds the
+*reflex-surface* fold at the bundle mint (below). The remaining stored surfaces —
+etymon `canonical_form` (still stored with case at rest), the `bundle/_emit.py`
+per-language maps (phon-vector/stratum/IPA/transliteration/original_script), and
+spelling variants — are **not yet folded** and are tracked in **wyrd-n2j6**.
+Treat the rule as the standard for any NEW surface-emitting code, and close the
+existing gaps via wyrd-n2j6.
 
 **Why (the load-bearing part — this keeps getting re-litigated):** a surface
 that differs from another *only by case* is a **duplicate**. Stored, it makes
@@ -4015,10 +4024,13 @@ is kept (the D54 cognate-vs-homograph distinction — case-fold must not merge
 `West`=direction with a hypothetical `West`=surname).
 
 **Scope + history.** D53 (wyrd-x5y4) established this for morpheme *identity*
-(`usage_key` + proportions mint). D55 states it as the general invariant across
-**all** surfaces and closes the reflex gap: `_fetch_family_era_reflexes`
-(`bundle/_family.py`) now case-folds + collapses reflex surfaces at the bundle
-mint — AFTER the derived-name pollution filter
+(`usage_key` + proportions mint) and named reflex surfaces in its scope, but the
+reflex *implementation* lagged. D55 closes that reflex gap and states the rule as
+the general invariant: `_fetch_family_era_reflexes` (`bundle/_family.py`) now
+case-folds + collapses reflex surfaces at the bundle mint. On a collapse the
+surviving entry is the one with the best `_ERA_REFLEX_SOURCE_PRIORITY` source
+(not the first-seen, which would let a capitalized artifact win). The fold runs
+AFTER the derived-name pollution filter
 (`_is_derived_name_pollution`, which *reads* case to drop proper-noun re-entries
 like `West Ham`/`Wesley`), so those drops still fire. Materializing a fix
 requires a from-L2 reseed (the bundle is derived). Any future surface-emitting

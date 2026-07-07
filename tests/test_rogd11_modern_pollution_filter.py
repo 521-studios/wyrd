@@ -91,6 +91,40 @@ def test_case_variant_reflexes_are_folded_and_collapsed(fresh_db: Path) -> None:
         assert forms.count("west") == 1  # West + west collapsed to a single reflex
 
 
+def test_case_fold_keeps_homographs_apart() -> None:
+    # D55/D54: the collapse key is (folded surface, gloss), so a same-surface /
+    # DIFFERENT-gloss pair is a homograph and BOTH survive — case-folding must not
+    # merge Ton=town with ton=unit-of-mass. Guards the gloss half of the key
+    # (which the glossless integration test above cannot exercise).
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "Ton", "source": "cluster", "gloss": "town"},
+            {"form": "ton", "source": "cluster", "gloss": "unit of mass"},
+        ]
+    )
+    assert sorted(e["form"] for e in out) == ["ton", "ton"]  # both kept, both folded
+    assert {e["gloss"] for e in out} == {"town", "unit of mass"}
+
+
+def test_case_fold_collapse_prefers_best_source() -> None:
+    # D55: on a case-collapse the survivor is the HIGHEST-priority source, not the
+    # first-seen. Input is sorted case-sensitively so the capitalized artifact
+    # ("West", weaker phonology-rule source) sorts first; the fold must still keep
+    # the lowercase member's stronger 'cluster' source — not let sort order pick.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "West", "source": "phonology-rule:v1"},  # first, weaker
+            {"form": "west", "source": "cluster"},  # stronger
+        ]
+    )
+    assert [e["form"] for e in out] == ["west"]
+    assert out[0]["source"] == "cluster"  # best source survived the collapse
+
+
 def test_all_modern_pollution_empties_the_stage(fresh_db: Path) -> None:
     # When nothing but derived names survive, the modern stage is omitted
     # entirely (no empty bucket manufactured).

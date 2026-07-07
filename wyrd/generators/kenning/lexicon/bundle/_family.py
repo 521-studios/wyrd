@@ -668,15 +668,27 @@ def _case_fold_reflex_entries(entries: list[dict[str, str]]) -> list[dict[str, s
     homograph rule, D54). Runs AFTER the derived-name pollution filter
     (``_is_derived_name_pollution``, which reads case to drop proper-noun
     re-entries) so those drops still fire. ``str.lower`` keeps macrons/diacritics
-    (D45). Deterministic: keeps the first entry per (folded surface, gloss);
-    re-sorts by the folded surface."""
-    seen: dict[tuple[str, str | None], dict[str, str]] = {}
+    (D45).
+
+    On a collapse the surviving entry is the one with the HIGHEST-quality source
+    (``_better_era_reflex_source``: cluster > descent > period-form >
+    phonology-rule) — NOT merely the first-seen. ``entries`` arrives sorted by
+    the original CASE-SENSITIVE form, so a capitalized artifact ("West") sorts
+    before its lowercase twin ("west"); first-seen would let that artifact
+    discard the lowercase member's better source/gloss (the pick
+    ``_collect_best_by_target`` already made). Ranking by source keeps the right
+    provenance; equal sources keep the first-seen (deterministic — input is
+    sorted). Re-sorts by the folded surface."""
+    best: dict[tuple[str, str | None], dict[str, str]] = {}
     for e in entries:
         folded = (e.get("form") or "").lower()
         key = (folded, e.get("gloss"))
-        if key not in seen:
-            seen[key] = {**e, "form": folded}
-    return sorted(seen.values(), key=lambda e: e["form"])
+        incumbent = best.get(key)
+        if incumbent is None or _better_era_reflex_source(
+            e.get("source", ""), incumbent.get("source", "")
+        ):
+            best[key] = {**e, "form": folded}
+    return sorted(best.values(), key=lambda e: e["form"])
 
 
 def _reflex_entry(reflex: EraReflex, glosses: dict[int, str]) -> dict[str, str]:
