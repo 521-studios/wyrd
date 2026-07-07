@@ -275,6 +275,9 @@ def test_native_fallback_index_matches_scan_max_and_zero_edge():
             ("english", "pre", "tree", 950): {"oe:a": 6.0},
             # different position, same culture → only l4 (c, *, *, *) sees it → 9
             ("english", "post", "water", 1600): {"oe:a": 9.0},
+            # a lemma stored at weight -inf: the `not in` first-seen check keeps
+            # it (a `.get(lemma, -inf)` seed would drop it — -inf > -inf False).
+            ("english", "pre", "plant", 950): {"oe:neginf": float("-inf")},
         }
     )
     l2, l3, l4 = priors.native_fallback_index
@@ -287,6 +290,8 @@ def test_native_fallback_index_matches_scan_max_and_zero_edge():
     # 0.0 lands in the index (present), so the lookup returns 0.0 not None.
     assert l2[("english", "pre", "plant")]["oe:zero"] == 0.0
     assert _native_lookup_tag_specific(priors, "oe:zero", "english", "pre", "plant", 950) == 0.0
+    # -inf lands in the index too (present, not dropped) — any-float correctness.
+    assert l2[("english", "pre", "plant")]["oe:neginf"] == float("-inf")
 
 
 # ---------- _loan_lookup_with_fallback ----------------------------------

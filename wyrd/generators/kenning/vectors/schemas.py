@@ -697,12 +697,14 @@ class EmpiricalPriors:
         * ``l3[(culture, position)]`` — level 3, ``(c, p, *, *)``.
         * ``l4[culture]`` — level 4, ``(c, *, *, *)``.
 
-        Max-aggregation preserves the scans' ``v > best`` semantics, including
-        a lemma stored at weight 0.0 (present, not absent): ``0.0`` beats the
-        ``-inf`` seed, so it lands in the index and the lookup returns 0.0
-        (not None), matching ``_native_lookup_*``'s ``in``-check convention.
+        Max-aggregation preserves the scans' ``best is None or v > best``
+        semantics exactly, via a ``not in`` first-seen check (correct for ANY
+        float weight — a ``.get(lemma, -inf)`` seed would drop a weight of
+        exactly ``-inf``, since ``-inf > -inf`` is False). This includes a
+        lemma stored at weight 0.0 (present, not absent): it lands in the index
+        and the lookup returns 0.0, not None, matching ``_native_lookup_*``'s
+        ``in``-check convention.
         """
-        neg_inf = float("-inf")
         l2: dict[tuple[str, str, str], dict[str, float]] = {}
         l3: dict[tuple[str, str], dict[str, float]] = {}
         l4: dict[str, dict[str, float]] = {}
@@ -711,10 +713,10 @@ class EmpiricalPriors:
             d3 = l3.setdefault((culture, position), {})
             d4 = l4.setdefault(culture, {})
             for lemma_ref, weight in cell.items():
-                if weight > d2.get(lemma_ref, neg_inf):
+                if lemma_ref not in d2 or weight > d2[lemma_ref]:
                     d2[lemma_ref] = weight
-                if weight > d3.get(lemma_ref, neg_inf):
+                if lemma_ref not in d3 or weight > d3[lemma_ref]:
                     d3[lemma_ref] = weight
-                if weight > d4.get(lemma_ref, neg_inf):
+                if lemma_ref not in d4 or weight > d4[lemma_ref]:
                     d4[lemma_ref] = weight
         return l2, l3, l4
