@@ -122,3 +122,36 @@ describe('accentedUsage applies the slot position case rule (like graftPosition)
     expect(accentedUsage(m)).toBeNull();
   });
 });
+
+describe('accentedUsage is scoped to the active render language (wyrd-refl)', () => {
+  // The reported bug: a MODERN-english reflex "lead" carries an old_english
+  // rendering whose original_script is the native "lēad". Without the active-
+  // language gate, the Output column upgraded "lead" → "lēad" while the
+  // de-accented Inspect era-grid kept "lead" — a macron only col 2 showed.
+  it('does NOT graft a native accent from a different-era language onto a modern reflex', () => {
+    const modern = {
+      usage: 'lead',
+      active_form_id: 'modern-english:lead',
+      renderings: { old_english: { lead: { original_script: 'lēad' } } },
+    };
+    expect(accentedUsage(modern)).toBeNull();
+  });
+
+  it('DOES upgrade when the accent is in the morpheme’s own active language', () => {
+    const native = {
+      usage: 'by',
+      active_form_id: 'old-english:by',
+      renderings: { old_english: { by: { original_script: 'bȳ' } } },
+    };
+    expect(accentedUsage(native)).toBe('bȳ');
+  });
+
+  it('matches active_form_id’s hyphenated language against the underscored renderings key', () => {
+    const m = {
+      usage: '-rom-',
+      active_form_id: 'old-english:rom',
+      renderings: { old_english: { rom: { original_script: 'Rōm' } } },
+    };
+    expect(accentedUsage(m)).toBe('-rōm-');
+  });
+});

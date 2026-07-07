@@ -55,15 +55,32 @@ const hasAccent = (s) => !!s && s.normalize('NFD') !== s;
  * surface when a rendering for the same (dash-stripped, lowercased) form
  * supplies one with a diacritic; otherwise null. Dash markers on the
  * original usage ("-by") are preserved on the result ("-bȳ").
+ *
+ * wyrd-refl: the upgrade is scoped to the morpheme's ACTIVE render language
+ * (`active_form_id` = "lang:surface"). `original_script` is the NATIVE
+ * (historical) spelling of a form; scanning EVERY rendering language grafted
+ * that native accent onto a form the generator rendered in a DIFFERENT, later
+ * era — e.g. a modern-english reflex "lead" picking up old-english "lēad" — so
+ * the modern-era Output column showed a macron the de-accented Inspect era-grid
+ * didn't. Restricting to the active language means a modern reflex only upgrades
+ * if its OWN (modern) rendering carries an accent, which it doesn't. When
+ * `active_form_id` is absent (older payloads / unit fixtures) we fall back to
+ * scanning all languages, preserving the prior behavior.
  */
 export function accentedUsage(morph) {
   if (!morph) return null;
   const u = norm(morph.usage);
   if (!u) return null;
   const R = morph.renderings || {};
-  for (const lang of Object.keys(R)) {
+  const activeLang = (morph.active_form_id || '').split(':')[0];
+  // Language keys carry hyphens in active_form_id ("modern-english") but
+  // underscores in the renderings map ("modern_english") — try both spellings.
+  const langKeys = activeLang
+    ? [...new Set([activeLang, activeLang.replace(/-/g, '_'), activeLang.replace(/_/g, '-')])]
+    : Object.keys(R);
+  for (const lang of langKeys) {
     const langForms = R[lang];
-    if (!langForms) continue; // a null lang bucket would crash Object.keys
+    if (!langForms) continue; // a null/absent lang bucket → nothing to upgrade
     for (const form of Object.keys(langForms)) {
       const os = langForms[form]?.original_script;
       if (os && norm(form) === u && hasAccent(os)) {
