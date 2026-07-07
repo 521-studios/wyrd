@@ -3986,3 +3986,41 @@ records `tūn`/`tún` as one cluster) and refines the **D5-3 / wyrd-c6o1.3**
 present-day homograph gate. Governs every multi-source culture, not just english
 `-ton`: scottish (Old English + Old Norse over a celtic base), breton (celtic +
 Old French), and any future cross-family cognate case.
+
+## D55. Case is a RENDER concern, never a storage format — for ANY morpheme surface (wyrd-refl-case, 2026-07-07).
+
+**Case is added at render time; it is never stored for anything.** No stored
+surface — morpheme identity (`usage_key`, `morpheme_id`), etymon
+`canonical_form`, reflex forms, spelling variants, era-grid cells — carries case.
+The renderer re-applies capitalization by position (a name's head capitalizes,
+a `-ton` suffix stays lower), exactly as it already does for the case-folded
+meaning identity.
+
+**Why (the load-bearing part — this keeps getting re-litigated):** a surface
+that differs from another *only by case* is a **duplicate**. Stored, it makes
+two things worse:
+
+- **The interface** — the inspector shows "West" and "west" as two separate
+  reflexes of one morpheme (the reported defect), the era-grid lights two cells
+  for one form, etc.
+- **The statistics** — case-variant surfaces split a morpheme's frequency mass
+  across two buckets, skewing the empirical proportions the generator samples
+  (reflexes merge into `forms_by_lang`, so an un-folded reflex pollutes sampling
+  too, not just the display).
+
+**The rule:** fold every surface to lowercase (`str.lower` — macrons/diacritics
+survive, D45) and **collapse two forms that share the same folded surface AND
+the same gloss**. A same-surface / *different*-gloss pair is a **homograph** and
+is kept (the D54 cognate-vs-homograph distinction — case-fold must not merge
+`West`=direction with a hypothetical `West`=surname).
+
+**Scope + history.** D53 (wyrd-x5y4) established this for morpheme *identity*
+(`usage_key` + proportions mint). D55 states it as the general invariant across
+**all** surfaces and closes the reflex gap: `_fetch_family_era_reflexes`
+(`bundle/_family.py`) now case-folds + collapses reflex surfaces at the bundle
+mint — AFTER the derived-name pollution filter
+(`_is_derived_name_pollution`, which *reads* case to drop proper-noun re-entries
+like `West Ham`/`Wesley`), so those drops still fire. Materializing a fix
+requires a from-L2 reseed (the bundle is derived). Any future surface-emitting
+path (new reflex tiers, variant loaders, ingest) inherits this invariant: emit
+lowercase, collapse case-variants — do not add a `keep the case` exception.

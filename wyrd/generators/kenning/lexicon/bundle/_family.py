@@ -653,8 +653,30 @@ def _fetch_family_era_reflexes(
         if not kept:
             continue
         glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in kept.values()])
-        out[target_language] = [_reflex_entry(kept[form], glosses) for form in sorted(kept)]
+        entries = [_reflex_entry(kept[form], glosses) for form in sorted(kept)]
+        out[target_language] = _case_fold_reflex_entries(entries)
     return out
+
+
+def _case_fold_reflex_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    """D55: case is a RENDER concern, never storage. A reflex form differing only
+    by case is a duplicate that worsens both the UI and the statistics, so fold
+    every reflex surface to lowercase (the render re-applies position case, as it
+    already does for the case-folded meaning identity, D53) and collapse
+    case-variants that share the same folded surface AND gloss. A same-surface /
+    different-gloss pair is a homograph and is kept (mirrors the cognate-vs-
+    homograph rule, D54). Runs AFTER the derived-name pollution filter
+    (``_is_derived_name_pollution``, which reads case to drop proper-noun
+    re-entries) so those drops still fire. ``str.lower`` keeps macrons/diacritics
+    (D45). Deterministic: keeps the first entry per (folded surface, gloss);
+    re-sorts by the folded surface."""
+    seen: dict[tuple[str, str | None], dict[str, str]] = {}
+    for e in entries:
+        folded = (e.get("form") or "").lower()
+        key = (folded, e.get("gloss"))
+        if key not in seen:
+            seen[key] = {**e, "form": folded}
+    return sorted(seen.values(), key=lambda e: e["form"])
 
 
 def _reflex_entry(reflex: EraReflex, glosses: dict[int, str]) -> dict[str, str]:

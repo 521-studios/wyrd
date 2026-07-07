@@ -59,16 +59,36 @@ def test_modern_stage_drops_derived_names_keeps_reflex(fresh_db: Path) -> None:
 
 
 def test_historical_stage_is_not_filtered(fresh_db: Path) -> None:
-    # The filter is modern-only; a capitalized OE cluster mate (an attested
-    # period spelling) must survive in the old-english stage.
+    # The derived-name filter is modern-only; a historical cluster mate must
+    # SURVIVE in the old-english stage (not dropped). D55: case is render-only,
+    # so the surviving form is case-folded — "Tuun" is KEPT but stored as
+    # "tuun" (the render re-applies the capital).
     with LexiconDB(fresh_db) as db:
         root = db.upsert_etymon("tūn", "old-english")
         db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
-        _mate(db, root, "Tuun", "old-english")  # capitalized, but historical → kept
+        _mate(db, root, "Tuun", "old-english")  # capitalized → survives, folded to 'tuun'
         db.commit()
         out = _fetch_family_era_reflexes(db, [root], "old-english")
         oe = {e["form"] for e in out.get("old-english", [])}
-        assert "Tuun" in oe and "tūn" in oe
+        assert "tuun" in oe and "tūn" in oe
+
+
+def test_case_variant_reflexes_are_folded_and_collapsed(fresh_db: Path) -> None:
+    # D55: case is render-only, so a capitalized reflex is folded to lowercase,
+    # and two forms differing ONLY by case (same gloss) collapse to one — the
+    # reported "norse west has two reflexes West and west".
+    with LexiconDB(fresh_db) as db:
+        root = db.upsert_etymon("vestr", "old-norse")
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
+        _mate(db, root, "West", "old-norse")  # capitalized case-artifact
+        _mate(db, root, "west", "old-norse")  # same surface, lowercase
+        db.commit()
+        forms = [
+            e["form"]
+            for e in _fetch_family_era_reflexes(db, [root], "old-norse").get("old-norse", [])
+        ]
+        assert "West" not in forms  # case folded away — the render adds the capital
+        assert forms.count("west") == 1  # West + west collapsed to a single reflex
 
 
 def test_all_modern_pollution_empties_the_stage(fresh_db: Path) -> None:
