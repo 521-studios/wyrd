@@ -228,9 +228,20 @@
   // absent) de-accents the native name as a best-effort modern skeleton. Per
   // morpheme the modern surface is `usage` (the modern bucket key), de-accented
   // in `paragonRows` below (modern reflexes are ASCII anyway).
-  let paragonName = $derived(result?.result_modern || deAccent(original?.name || ''));
+  // wyrd-mcpersist: the modern companion is pinned to the ORIGINAL, so read
+  // result_modern from `original` (which retains it) rather than the live
+  // `result` — a transform (time-warp / morpheme swap) NULLs result_modern on
+  // the current result, which otherwise hid the companion after any edit. The
+  // companion stays the as-generated modern reflex, unaffected by swaps (the
+  // pinned-to-original contract above).
+  let paragonName = $derived(original?.result_modern || deAccent(original?.name || ''));
   let paragonRows = $derived.by(() =>
     rowsFor(original?.morphemes_by_word, (m) => deAccent(m.usage)),
+  );
+  // showModernCompanion expects a {result, result_modern} shape; `original`
+  // stores the native name under `name`, so adapt it.
+  let showParagon = $derived(
+    showModernCompanion({ result: original?.name, result_modern: original?.result_modern }),
   );
 </script>
 
@@ -267,7 +278,7 @@
         <!-- wyrd-swh2: only show the modern paragon when it differs from the
              native (result_modern !== result), matching the Output column —
              a native==modern roll would otherwise duplicate the card. -->
-        {#if paragonRows.length && showModernCompanion(result)}
+        {#if paragonRows.length && showParagon}
           <NameGuideCard name={paragonName} label="modern" dim rows={paragonRows} />
         {/if}
       </div>
