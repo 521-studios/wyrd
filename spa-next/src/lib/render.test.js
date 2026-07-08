@@ -5,6 +5,7 @@ import {
   modernSurface,
   showMorphemeModern,
   showModernCompanion,
+  isNativeRender,
 } from './render.js';
 
 describe('nativeSurface', () => {
@@ -62,5 +63,35 @@ describe('showModernCompanion', () => {
     expect(showModernCompanion({ result: 'X' })).toBe(false);
     expect(showModernCompanion({ result: 'X', result_modern: '' })).toBe(false);
     expect(showModernCompanion(null)).toBe(false);
+  });
+});
+
+describe('isNativeRender', () => {
+  it('is true when a morpheme carries an era-render pin (rendered_language)', () => {
+    // an Old-English roll whose surface coincidentally spells the same as modern
+    // ("west"/"west") — showModernCompanion(result_modern===result) would MISS it,
+    // isNativeRender still shows the companion (matches the 'Old English' badge).
+    const mbw = [[{ usage: 'west', rendered: 'west', rendered_language: 'old-english' }]];
+    expect(isNativeRender(mbw)).toBe(true);
+  });
+
+  it('is true when a morpheme is grid-pinned to a stage (_lang)', () => {
+    expect(isNativeRender([[{ usage: 'ton', _lang: 'old-english' }]])).toBe(true);
+  });
+
+  it('is true when an un-pinned morpheme has a distinct native rendered form', () => {
+    expect(isNativeRender([[{ usage: 'chester', rendered: 'ceaster' }]])).toBe(true);
+  });
+
+  it('is false for a genuinely-modern roll (no pins, rendered == usage)', () => {
+    // the "as generated" case — native == modern, so no companion (no noise).
+    const mbw = [[{ usage: 'north', rendered: 'north' }], [{ usage: 'hill' }]];
+    expect(isNativeRender(mbw)).toBe(false);
+  });
+
+  it('is false for empty / missing input', () => {
+    expect(isNativeRender([])).toBe(false);
+    expect(isNativeRender(null)).toBe(false);
+    expect(isNativeRender([[{ usage: '   ' }]])).toBe(false);
   });
 });

@@ -10,7 +10,7 @@
   import { accentedName } from '../lib/accents.js';
   // wyrd-24s6 (D41): native/modern surface predicates live in lib/render.js so
   // they're unit-testable (svelte components have no test harness here).
-  import { nativeSurface, modernSurface, showModernCompanion } from '../lib/render.js';
+  import { nativeSurface, modernSurface, isNativeRender } from '../lib/render.js';
 
   function selectResult(i) {
     appState.currentResultIndex =
@@ -69,15 +69,17 @@
               <span class="name-line">
                 <span class="name">{live ? live.name : accentedName(r)}</span>
                 <!-- wyrd-24s6 (D41): the modern companion, in darker secondary
-                     lettering to the right. Shown only when it differs from the
-                     native canonical (a plain/force-modern roll has native ==
-                     modern, so the companion would be noise). wyrd-c6o1.1: a
-                     transform nulls result_modern in the committed store (the
-                     original reflex no longer describes the edited name), so
-                     showModernCompanion alone hides it — the prior
-                     live.name===r.result guard is now always true (the pipeline
-                     commits its name into r.result) and was dropped. -->
-                {#if showModernCompanion(r)}
+                     lettering to the right. Shown for every NON-MODERN render
+                     (isNativeRender: the render carries a native era), so a
+                     non-modern name whose morphemes coincidentally spell the same
+                     as their modern reflex still shows it — consistent with the
+                     inspector's era badge. A plain/force-modern ('as generated')
+                     roll has no native era, so it's hidden (no noise).
+                     wyrd-c6o1.1: a transform nulls result_modern in the committed
+                     store (the original reflex no longer describes the edited
+                     name), so the `r.result_modern &&` guard keeps hiding it
+                     post-edit (isNativeRender alone would leave an empty span). -->
+                {#if r.result_modern && isNativeRender(r.morphemes_by_word)}
                   <span class="name-modern" title="modern reflex">{r.result_modern}</span>
                 {/if}
               </span>
