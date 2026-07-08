@@ -697,7 +697,10 @@ def _case_fold_reflex_entries(entries: list[dict[str, str]]) -> list[dict[str, s
     out: list[dict[str, str]] = []
     for folded, group in by_folded.items():
         out.extend(_collapse_folded_group(folded, group))
-    return sorted(out, key=lambda e: e["form"])
+    # Sort by (folded form, gloss) so homographs (same folded surface, distinct
+    # glosses) have an explicit, insertion-order-independent order — byte-identical
+    # bundles across runs (D36.9). Glossless entries sort first (gloss → "").
+    return sorted(out, key=lambda e: (e["form"], e.get("gloss", "")))
 
 
 def _collapse_folded_group(folded: str, group: list[dict[str, str]]) -> list[dict[str, str]]:

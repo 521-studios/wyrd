@@ -142,6 +142,38 @@ def test_case_fold_collapses_sparse_gloss_variants() -> None:
     assert out[0]["gloss"] == "compass direction"  # the one known gloss is kept
 
 
+def test_case_fold_sparse_merge_keeps_best_source() -> None:
+    # D55: when a glossless variant merges into the sole gloss, the higher-quality
+    # source still wins — here the glossless 'west' (cluster) outranks the glossed
+    # 'West' (phonology-rule), so the survivor takes cluster AND keeps the gloss.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "West", "source": "phonology-rule:v1", "gloss": "compass direction"},
+            {"form": "west", "source": "cluster"},
+        ]
+    )
+    assert out == [{"form": "west", "source": "cluster", "gloss": "compass direction"}]
+
+
+def test_case_fold_keeps_glossless_standalone_beside_homographs() -> None:
+    # D55: with TWO distinct glosses on a folded surface, a glossless variant
+    # can't be attributed to either sense, so it survives as its own bare entry
+    # alongside both homographs (three 'ton' rows). Folded, best-source per bucket.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "Ton", "source": "cluster", "gloss": "town"},
+            {"form": "ton", "source": "cluster", "gloss": "unit of mass"},
+            {"form": "TON", "source": "descent"},
+        ]
+    )
+    assert [e["form"] for e in out] == ["ton", "ton", "ton"]  # all folded, none merged
+    assert {e.get("gloss") for e in out} == {"town", "unit of mass", None}
+
+
 def test_all_modern_pollution_empties_the_stage(fresh_db: Path) -> None:
     # When nothing but derived names survive, the modern stage is omitted
     # entirely (no empty bucket manufactured).
