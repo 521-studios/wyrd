@@ -23,6 +23,7 @@ from typing import Any
 
 from wyrd.generators.kenning.lexicon.bundle._family import (
     _better_era_reflex_source,
+    _case_fold_reflex_entries,
     _is_derived_name_pollution,
     _modern_stage_languages,
 )
@@ -138,9 +139,13 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
                     existing = best.get(r.form)
                     if existing is None or _better_era_reflex_source(r.source, existing):
                         best[r.form] = r.source
-                era_reflexes[target_language] = [
-                    {"form": form, "source": best[form]} for form in sorted(best)
-                ]
+                # D55: case is render-only — fold the fantasy path's reflex
+                # surfaces too (same choke point as the toponym emit). etymon
+                # canonical_forms carry case at rest (wyrd-n2j6), so without this
+                # the creature/fantasy bundle leaks capitalized reflexes.
+                era_reflexes[target_language] = _case_fold_reflex_entries(
+                    [{"form": form, "source": best[form]} for form in sorted(best)]
+                )
         out[row["input_name"]] = {
             "input_name": row["input_name"],
             "etymon_id": etymon_id,

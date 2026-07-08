@@ -3997,13 +3997,19 @@ capitalizes, a `-ton` suffix stays lower), exactly as it already does for the
 case-folded meaning identity.
 
 **Rollout status (this is a partially-materialized invariant, not a done fact).**
-D53 folded morpheme *identity* (`usage_key` + proportions). This entry adds the
-*reflex-surface* fold at the bundle mint (below). The remaining stored surfaces —
-etymon `canonical_form` (still stored with case at rest), the `bundle/_emit.py`
-per-language maps (phon-vector/stratum/IPA/transliteration/original_script), and
-spelling variants — are **not yet folded** and are tracked in **wyrd-n2j6**.
-Treat the rule as the standard for any NEW surface-emitting code, and close the
-existing gaps via wyrd-n2j6.
+D53 folded morpheme *identity* (`usage_key` + proportions). The `era_reflexes`
+surface is now fully folded at BOTH emit choke points — the toponym path
+(`_emit_era_reflexes`, which also folds the self-seeds: the own `canonical_form`
+and the generated `modern_usage`) and the fantasy/creature path
+(`fantasy_export`). The remaining stored surfaces — etymon `canonical_form` at
+rest, the `bundle/_emit.py` per-language maps
+(phon-vector/stratum/IPA/transliteration/original_script), and spelling
+variants — are **not yet folded** and are tracked in **wyrd-n2j6**. One
+render-side item also lives there: `graftPosition` does not re-capitalize a
+pre/bare grid-head, so a folded generated surface renders lowercase in the
+col-3 grid where the col-2 name shows the capital (cosmetic — the highlight is
+casefold-based and unaffected). Treat the rule as the standard for any NEW
+surface-emitting code, and close the existing gaps via wyrd-n2j6.
 
 **Why (the load-bearing part — this keeps getting re-litigated):** a surface
 that differs from another *only by case* is a **duplicate**. Stored, it makes

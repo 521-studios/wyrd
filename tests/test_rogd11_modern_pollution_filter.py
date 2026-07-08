@@ -273,6 +273,31 @@ def test_fantasy_export_also_filters_modern_pollution(fresh_db: Path) -> None:
         assert modern == ["ton"]
 
 
+def test_fantasy_export_case_folds_reflexes(fresh_db: Path) -> None:
+    # D55: the fantasy/creature bundle path folds reflex case too (its own
+    # era_reflexes builder). A capitalized HISTORICAL cluster-mate ('Tuun', not
+    # pollution-filtered because that filter is modern-only) must emit lowercase
+    # 'tuun' — otherwise case leaks into the served fantasy bundle.
+    from wyrd.generators.kenning.lexicon.fantasy_export import collect_fantasy_morphemes
+
+    with LexiconDB(fresh_db) as db:
+        root = db.upsert_etymon("tūn", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
+        _mate(db, root, "Tuun", "old-english")  # capitalized historical mate
+        db.conn.execute(
+            "INSERT INTO fantasy_morpheme "
+            "(input_name, usable, etymon_id, resolution_method, approach_version, processed_at) "
+            "VALUES ('Tunhold', 1, ?, 'test', 'v1', '2026-01-01')",
+            (root,),
+        )
+        db.commit()
+        oe = [
+            e["form"]
+            for e in collect_fantasy_morphemes(db)["Tunhold"]["era_reflexes"].get("old-english", [])
+        ]
+        assert "Tuun" not in oe and "tuun" in oe  # folded, no cased leak
+
+
 def _descent_parent(
     db, child_id: int, parent_form: str, parent_lang: str, edge: str = "inheritance"
 ) -> int:
