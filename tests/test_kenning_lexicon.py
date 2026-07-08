@@ -7166,8 +7166,22 @@ def test_emit_era_reflexes_case_folds_the_emitted_list() -> None:
     }
     _emit_era_reflexes(word, [(fam, [])])
     forms = [e["form"] for e in word["era_reflexes"]["old-norse"]]
-    assert "West" not in forms  # folded away — render adds the capital
+    assert "West" not in forms  # folded away — the SPA highlight folds case anyway
     assert "west" in forms and "vestr" in forms and "vest" in forms  # self-seed too
+
+
+def test_emit_era_reflexes_folds_own_capitalized_canonical() -> None:
+    """D55: the fold also covers the OWN canonical_form self-seed (line 418), not
+    just cross-family reflexes — a capitalized canonical_form (case-carrying at
+    rest, wyrd-n2j6) folds. And a dashed affix keeps its dash UNDER the fold
+    (str.lower doesn't strip dashes), so the dash-keyed self-seed dedup is intact.
+    """
+    word = {"morpheme_id": "old-norse:Vest"}
+    _emit_era_reflexes(word, [({"era_reflexes": {}}, [])])
+    assert word["era_reflexes"]["old-norse"] == [{"form": "vest", "source": "self"}]
+    dashed = {"morpheme_id": "old-english:-Tun"}
+    _emit_era_reflexes(dashed, [({"era_reflexes": {}}, [])])
+    assert dashed["era_reflexes"]["old-english"] == [{"form": "-tun", "source": "self"}]
 
 
 def test_emit_era_reflexes_dash_only_form_is_not_seeded() -> None:
@@ -7208,8 +7222,12 @@ def test_emit_era_reflexes_self_seeds_generated_surface_into_modern_stage() -> N
     canonical own form, it must echo in the family's MODERN stage so the SPA's
     cellForSurface highlights the as-generated form. 'Cras-' (vs canonical
     old-english:cærse) lands in modern-english; the canonical still seeds OE.
-    D55: the seed is case-folded ('cras-') — the SPA highlights via the
-    case-insensitive accentFold, and the render re-applies the capital."""
+    D55: the seed is case-folded ('cras-'). The SPA highlight is unaffected —
+    cellForSurface matches via the case-insensitive accentFold and the runtime
+    cell-dedup is casefold-based, so no duplicate modern cell. The col-3 grid
+    cell then shows the folded surface (lowercase for a pre/bare slot, as D53
+    already does for dashed reflexes); a render pass that re-capitalizes grid
+    heads per D55 is tracked under wyrd-n2j6."""
     word = {"morpheme_id": "old-english:cærse", "modern_usage": "Cras-"}
     fam = {"era_reflexes": {"old-english": [{"form": "cærse", "source": "cluster"}]}}
     _emit_era_reflexes(word, [(fam, [])])
@@ -7303,7 +7321,8 @@ def test_emit_era_reflexes_surface_seed_other_families() -> None:
     word_fr = {"morpheme_id": "old-french:rose", "modern_usage": "Rosen-"}
     _emit_era_reflexes(word_fr, [({"era_reflexes": {}}, [])])
     assert word_fr["era_reflexes"]["old-french"] == [{"form": "rose", "source": "self"}]
-    # D55: generated surface is case-folded ('rosen-'); render re-applies case.
+    # D55: generated surface is case-folded ('rosen-'); highlight is casefold-based
+    # so unaffected (grid-cell head re-capitalization tracked under wyrd-n2j6).
     assert word_fr["era_reflexes"]["french"] == [{"form": "rosen-", "source": "self"}]
 
 
