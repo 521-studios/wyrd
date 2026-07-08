@@ -59,16 +59,119 @@ def test_modern_stage_drops_derived_names_keeps_reflex(fresh_db: Path) -> None:
 
 
 def test_historical_stage_is_not_filtered(fresh_db: Path) -> None:
-    # The filter is modern-only; a capitalized OE cluster mate (an attested
-    # period spelling) must survive in the old-english stage.
+    # The derived-name filter is modern-only; a historical cluster mate must
+    # SURVIVE in the old-english stage (not dropped). D55: case is render-only,
+    # so the surviving form is case-folded — "Tuun" is KEPT but stored as
+    # "tuun" (the render re-applies the capital).
     with LexiconDB(fresh_db) as db:
         root = db.upsert_etymon("tūn", "old-english")
         db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
-        _mate(db, root, "Tuun", "old-english")  # capitalized, but historical → kept
+        _mate(db, root, "Tuun", "old-english")  # capitalized → survives, folded to 'tuun'
         db.commit()
         out = _fetch_family_era_reflexes(db, [root], "old-english")
         oe = {e["form"] for e in out.get("old-english", [])}
-        assert "Tuun" in oe and "tūn" in oe
+        assert "tuun" in oe and "tūn" in oe
+
+
+def test_case_variant_reflexes_are_folded_and_collapsed(fresh_db: Path) -> None:
+    # D55: case is render-only, so a capitalized reflex is folded to lowercase,
+    # and two forms differing ONLY by case (same gloss) collapse to one — the
+    # reported "norse west has two reflexes West and west".
+    with LexiconDB(fresh_db) as db:
+        root = db.upsert_etymon("vestr", "old-norse")
+        db.conn.execute("UPDATE etymon SET cognate_id=? WHERE id=?", (root, root))
+        _mate(db, root, "West", "old-norse")  # capitalized case-artifact
+        _mate(db, root, "west", "old-norse")  # same surface, lowercase
+        db.commit()
+        forms = [
+            e["form"]
+            for e in _fetch_family_era_reflexes(db, [root], "old-norse").get("old-norse", [])
+        ]
+        assert "West" not in forms  # case folded away — the render adds the capital
+        assert forms.count("west") == 1  # West + west collapsed to a single reflex
+
+
+def test_case_fold_keeps_homographs_apart() -> None:
+    # D55/D54: a same-surface / DIFFERENT-gloss pair is a homograph and BOTH
+    # survive — case-folding must not merge Ton=town with ton=unit-of-mass.
+    # Guards the per-gloss grouping (which the glossless integration test above
+    # cannot exercise).
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "Ton", "source": "cluster", "gloss": "town"},
+            {"form": "ton", "source": "cluster", "gloss": "unit of mass"},
+        ]
+    )
+    assert sorted(e["form"] for e in out) == ["ton", "ton"]  # both kept, both folded
+    assert {e["gloss"] for e in out} == {"town", "unit of mass"}
+
+
+def test_case_fold_collapse_prefers_best_source() -> None:
+    # D55: on a case-collapse the survivor is the HIGHEST-priority source, not the
+    # first-seen. Input is sorted case-sensitively so the capitalized artifact
+    # ("West", weaker phonology-rule source) sorts first; the fold must still keep
+    # the lowercase member's stronger 'cluster' source — not let sort order pick.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "West", "source": "phonology-rule:v1"},  # first, weaker
+            {"form": "west", "source": "cluster"},  # stronger
+        ]
+    )
+    assert [e["form"] for e in out] == ["west"]
+    assert out[0]["source"] == "cluster"  # best source survived the collapse
+
+
+def test_case_fold_collapses_sparse_gloss_variants() -> None:
+    # D55: glosses are SPARSE, so a case-variant pair where only ONE side carries
+    # a gloss must STILL collapse. The reported bug: "West"+gloss and
+    # "west"+no-gloss otherwise took different (folded, gloss) keys and both
+    # survived, re-introducing the duplicate. The lone gloss is preserved.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "West", "source": "cluster", "gloss": "compass direction"},
+            {"form": "west", "source": "cluster"},
+        ]
+    )
+    assert [e["form"] for e in out] == ["west"]  # collapsed despite the sparse gloss
+    assert out[0]["gloss"] == "compass direction"  # the one known gloss is kept
+
+
+def test_case_fold_sparse_merge_keeps_best_source() -> None:
+    # D55: when a glossless variant merges into the sole gloss, the higher-quality
+    # source still wins — here the glossless 'west' (cluster) outranks the glossed
+    # 'West' (phonology-rule), so the survivor takes cluster AND keeps the gloss.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "West", "source": "phonology-rule:v1", "gloss": "compass direction"},
+            {"form": "west", "source": "cluster"},
+        ]
+    )
+    assert out == [{"form": "west", "source": "cluster", "gloss": "compass direction"}]
+
+
+def test_case_fold_keeps_glossless_standalone_beside_homographs() -> None:
+    # D55: with TWO distinct glosses on a folded surface, a glossless variant
+    # can't be attributed to either sense, so it survives as its own bare entry
+    # alongside both homographs (three 'ton' rows). Folded, best-source per bucket.
+    from wyrd.generators.kenning.lexicon.bundle._family import _case_fold_reflex_entries
+
+    out = _case_fold_reflex_entries(
+        [
+            {"form": "Ton", "source": "cluster", "gloss": "town"},
+            {"form": "ton", "source": "cluster", "gloss": "unit of mass"},
+            {"form": "TON", "source": "descent"},
+        ]
+    )
+    assert [e["form"] for e in out] == ["ton", "ton", "ton"]  # all folded, none merged
+    assert {e.get("gloss") for e in out} == {"town", "unit of mass", None}
 
 
 def test_all_modern_pollution_empties_the_stage(fresh_db: Path) -> None:

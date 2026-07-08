@@ -653,7 +653,84 @@ def _fetch_family_era_reflexes(
         if not kept:
             continue
         glosses = _fetch_reflex_glosses(db, [r.etymon_id for r in kept.values()])
-        out[target_language] = [_reflex_entry(kept[form], glosses) for form in sorted(kept)]
+        entries = [_reflex_entry(kept[form], glosses) for form in sorted(kept)]
+        out[target_language] = _case_fold_reflex_entries(entries)
+    return out
+
+
+def _case_fold_reflex_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    """D55: case is a RENDER concern, never storage. A reflex form differing only
+    by case is a duplicate that worsens both the UI and the statistics, so fold
+    every reflex surface to lowercase (the render re-applies position case, as it
+    already does for the case-folded meaning identity, D53) and collapse
+    case-variants of the same surface. Runs AFTER the derived-name pollution
+    filter (``_is_derived_name_pollution``, which reads case to drop proper-noun
+    re-entries) so those drops still fire. ``str.lower`` keeps macrons/diacritics
+    (D45).
+
+    Collapse semantics — glosses are SPARSE (``_reflex_entry`` omits them when the
+    reflex etymon has none), so the collapse must NOT hinge on both sides carrying
+    the same gloss:
+
+    * Group by the folded surface, then by gloss within it. Two entries with the
+      same folded surface but DIFFERENT non-empty glosses are homographs (D54 —
+      ``ton``=town vs ``ton``=mass) and are kept apart.
+    * A GLOSSLESS variant is an unlabeled instance of the same reflex, not a
+      distinct sense. With exactly one distinct gloss present it MERGES into that
+      gloss — otherwise the reported bug reappears: ``West``+gloss and
+      ``west``+no-gloss would take different ``(folded, gloss)`` keys and both
+      survive. With zero or ≥2 distinct glosses it can't be attributed, so one
+      glossless entry is kept alongside any homographs.
+    * Within any collapse the survivor is the HIGHEST-quality source
+      (``_better_era_reflex_source``: cluster > descent > period-form >
+      phonology-rule), NOT the first-seen — ``entries`` arrives sorted by the
+      original CASE-SENSITIVE form, so a capitalized artifact ("West") sorts
+      first and first-seen would let it discard the lowercase member's better
+      source. Equal sources keep the first-seen (deterministic — input is
+      sorted).
+
+    Re-sorts by the folded surface."""
+    by_folded: dict[str, list[dict[str, str]]] = {}
+    for e in entries:
+        by_folded.setdefault((e.get("form") or "").lower(), []).append(e)
+
+    out: list[dict[str, str]] = []
+    for folded, group in by_folded.items():
+        out.extend(_collapse_folded_group(folded, group))
+    # Sort by (folded form, gloss) so homographs (same folded surface, distinct
+    # glosses) have an explicit, insertion-order-independent order — byte-identical
+    # bundles across runs (D36.9). Glossless entries sort first (gloss → "").
+    return sorted(out, key=lambda e: (e["form"], e.get("gloss") or ""))
+
+
+def _collapse_folded_group(folded: str, group: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Collapse one folded-surface group into its distinct senses, per the gloss
+    / glossless / homograph rules in :func:`_case_fold_reflex_entries`. Each
+    surviving entry's ``form`` is set to ``folded`` (the lowercased surface)."""
+    glossed: dict[str, dict[str, str]] = {}  # gloss -> best-source entry
+    glossless: dict[str, str] | None = None
+    for e in group:
+        gloss = e.get("gloss")
+        if gloss:
+            incumbent = glossed.get(gloss)
+            if incumbent is None or _better_era_reflex_source(
+                e.get("source", ""), incumbent.get("source", "")
+            ):
+                glossed[gloss] = e
+        elif glossless is None or _better_era_reflex_source(
+            e.get("source", ""), glossless.get("source", "")
+        ):
+            glossless = e
+    if glossless is not None and len(glossed) == 1:
+        # A single sense + unlabeled variants → the same reflex; fold the
+        # glossless into that gloss (keep its source only if it outranks).
+        gloss, incumbent = next(iter(glossed.items()))
+        if _better_era_reflex_source(glossless.get("source", ""), incumbent.get("source", "")):
+            glossed[gloss] = {**glossless, "gloss": gloss}
+        glossless = None
+    out = [{**e, "form": folded} for e in glossed.values()]
+    if glossless is not None:
+        out.append({**glossless, "form": folded})
     return out
 
 
