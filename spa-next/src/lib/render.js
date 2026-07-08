@@ -36,3 +36,28 @@ export function showMorphemeModern(morph) {
 export function showModernCompanion(result) {
   return !!(result?.result_modern && result.result_modern !== result.result);
 }
+
+/** Whether a result's render carries a NATIVE (non-modern) era — the show-gate
+ *  for the modern companion. Matches the era badge's 'native'/'<Era>'/'Mixed'
+ *  vs 'as generated' split (`eraBadge !== 'as generated'`, era.js): true when any
+ *  morpheme has an era pin (a grid-swap `_lang` or an era render's
+ *  `rendered_language`) OR an un-pinned morpheme's native `rendered` form differs
+ *  from its modern `usage`.
+ *
+ *  Replaces the older `showModernCompanion` (`result_modern !== result`) string
+ *  test as the gate, so the companion is shown CONSISTENTLY for every non-modern
+ *  name — including one whose non-modern morphemes coincidentally spell the same
+ *  as their modern reflex (an Old-English 'west'/'north'), where the strings
+ *  match but the era badge still says 'Old English'. A genuinely-modern
+ *  ('as generated') roll — native == modern — is still hidden (no noise). */
+export function isNativeRender(morphemes_by_word, result = null, result_modern = null) {
+  const morphs = (morphemes_by_word || []).flat().filter((m) => m?.usage?.trim());
+  // Fallback: a generator that exposes no per-morpheme metadata can't be
+  // era-classified, so fall back to the `result_modern !== result` string test
+  // (the prior showModernCompanion behavior) rather than silently hiding the
+  // companion whenever morphemes are absent.
+  if (morphs.length === 0) return !!(result && result_modern && result_modern !== result);
+  return morphs.some(
+    (m) => m?._lang || m?.rendered_language || (m?.rendered && m.rendered !== m.usage),
+  );
+}

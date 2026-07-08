@@ -30,7 +30,7 @@
     glossForSurface,
     isGlossDrift,
   } from '../lib/era.js';
-  import { showModernCompanion } from '../lib/render.js';
+  import { isNativeRender } from '../lib/render.js';
   import { flagOn } from '../lib/featureFlags.js';
   import { rewindTransform } from '../lib/transforms/rewind.js';
   import NameGuideCard from '../components/NameGuideCard.svelte';
@@ -238,10 +238,14 @@
   let paragonRows = $derived.by(() =>
     rowsFor(original?.morphemes_by_word, (m) => deAccent(m.usage)),
   );
-  // showModernCompanion expects a {result, result_modern} shape; `original`
-  // stores the native name under `name`, so adapt it.
+  // Show the modern paragon for EVERY non-modern render, not just when the
+  // modern string differs from the native (isNativeRender vs the old
+  // showModernCompanion): a non-modern name whose morphemes coincidentally spell
+  // the same as their modern reflex (an Old-English 'west'/'north') still gets
+  // the companion, so it's consistent with the native card's era badge. A
+  // genuinely-modern ('as generated') roll stays companion-less.
   let showParagon = $derived(
-    showModernCompanion({ result: original?.name, result_modern: original?.result_modern }),
+    isNativeRender(original?.morphemes_by_word, original?.name, original?.result_modern),
   );
 </script>
 
