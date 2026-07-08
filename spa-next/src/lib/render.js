@@ -50,8 +50,13 @@ export function showModernCompanion(result) {
  *  as their modern reflex (an Old-English 'west'/'north'), where the strings
  *  match but the era badge still says 'Old English'. A genuinely-modern
  *  ('as generated') roll — native == modern — is still hidden (no noise). */
-export function isNativeRender(morphemes_by_word) {
+export function isNativeRender(morphemes_by_word, result = null, result_modern = null) {
   const morphs = (morphemes_by_word || []).flat().filter((m) => m?.usage?.trim());
+  // Fallback: a generator that exposes no per-morpheme metadata can't be
+  // era-classified, so fall back to the `result_modern !== result` string test
+  // (the prior showModernCompanion behavior) rather than silently hiding the
+  // companion whenever morphemes are absent.
+  if (morphs.length === 0) return !!(result && result_modern && result_modern !== result);
   return morphs.some(
     (m) => m?._lang || m?.rendered_language || (m?.rendered && m.rendered !== m.usage),
   );

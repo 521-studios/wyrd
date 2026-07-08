@@ -244,7 +244,9 @@
   // the same as their modern reflex (an Old-English 'west'/'north') still gets
   // the companion, so it's consistent with the native card's era badge. A
   // genuinely-modern ('as generated') roll stays companion-less.
-  let showParagon = $derived(isNativeRender(original?.morphemes_by_word));
+  let showParagon = $derived(
+    isNativeRender(original?.morphemes_by_word, original?.name, original?.result_modern),
+  );
 </script>
 
 <section class="column">

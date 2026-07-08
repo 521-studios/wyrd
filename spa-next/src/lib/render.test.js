@@ -94,4 +94,19 @@ describe('isNativeRender', () => {
     expect(isNativeRender(null)).toBe(false);
     expect(isNativeRender([[{ usage: '   ' }]])).toBe(false);
   });
+
+  it('ignores whitespace-only morphemes even when they carry an era pin', () => {
+    // mirrors eraBadge's `usage?.trim()` filter: a blank-usage slot is not a real
+    // morpheme, so its stray era pin must not force the companion on.
+    expect(isNativeRender([[{ usage: '   ', rendered_language: 'old-english' }]])).toBe(false);
+  });
+
+  it('falls back to the string test when no morpheme metadata is present', () => {
+    // a generator that exposes no morphemes_by_word can't be era-classified, so
+    // reuse the showModernCompanion behavior (result_modern !== result) instead
+    // of silently hiding the companion.
+    expect(isNativeRender([], 'Bolingcumb', 'Boingcombe')).toBe(true);
+    expect(isNativeRender([], 'Bolesby', 'Bolesby')).toBe(false);
+    expect(isNativeRender(null, 'X', null)).toBe(false); // no modern → nothing to show
+  });
 });

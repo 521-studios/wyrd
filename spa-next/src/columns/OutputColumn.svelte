@@ -79,7 +79,7 @@
                      store (the original reflex no longer describes the edited
                      name), so the `r.result_modern &&` guard keeps hiding it
                      post-edit (isNativeRender alone would leave an empty span). -->
-                {#if r.result_modern && isNativeRender(r.morphemes_by_word)}
+                {#if r.result_modern && isNativeRender(r.morphemes_by_word, r.result, r.result_modern)}
                   <span class="name-modern" title="modern reflex">{r.result_modern}</span>
                 {/if}
               </span>
