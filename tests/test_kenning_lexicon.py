@@ -7148,6 +7148,28 @@ def test_emit_era_reflexes_self_seeds_dashed_affix_verbatim() -> None:
     assert word["era_reflexes"] == {"old-english": [{"form": "-ing", "source": "self"}]}
 
 
+def test_emit_era_reflexes_case_folds_the_emitted_list() -> None:
+    """D55: the EMITTED era_reflexes is case-folded — a capitalized form ('West',
+    a cased canonical_form / generated surface stamped VERBATIM as a self-seed)
+    must not leak into the bundle; the render re-applies case. Regression for the
+    reported norse 'West'/'west' duplicate: the per-family fold in
+    _fetch_family_era_reflexes runs BEFORE the self-seed is added here, so the
+    emit is the choke point that has to fold."""
+    word = {"morpheme_id": "old-norse:vest"}
+    fam = {
+        "era_reflexes": {
+            "old-norse": [
+                {"form": "West", "source": "self"},  # capitalized artifact
+                {"form": "vestr", "source": "cluster"},
+            ]
+        }
+    }
+    _emit_era_reflexes(word, [(fam, [])])
+    forms = [e["form"] for e in word["era_reflexes"]["old-norse"]]
+    assert "West" not in forms  # folded away — render adds the capital
+    assert "west" in forms and "vestr" in forms and "vest" in forms  # self-seed too
+
+
 def test_emit_era_reflexes_dash_only_form_is_not_seeded() -> None:
     """A morpheme_id whose form is bare dashes has no real content → no seed."""
     word = {"morpheme_id": "old-english:-"}
@@ -7185,12 +7207,14 @@ def test_emit_era_reflexes_self_seeds_generated_surface_into_modern_stage() -> N
     """wyrd-mook: when the generated surface (modern_usage) differs from the
     canonical own form, it must echo in the family's MODERN stage so the SPA's
     cellForSurface highlights the as-generated form. 'Cras-' (vs canonical
-    old-english:cærse) lands in modern-english; the canonical still seeds OE."""
+    old-english:cærse) lands in modern-english; the canonical still seeds OE.
+    D55: the seed is case-folded ('cras-') — the SPA highlights via the
+    case-insensitive accentFold, and the render re-applies the capital."""
     word = {"morpheme_id": "old-english:cærse", "modern_usage": "Cras-"}
     fam = {"era_reflexes": {"old-english": [{"form": "cærse", "source": "cluster"}]}}
     _emit_era_reflexes(word, [(fam, [])])
     assert word["era_reflexes"]["old-english"] == [{"form": "cærse", "source": "cluster"}]
-    assert word["era_reflexes"]["modern-english"] == [{"form": "Cras-", "source": "self"}]
+    assert word["era_reflexes"]["modern-english"] == [{"form": "cras-", "source": "self"}]
 
 
 def test_emit_era_reflexes_surface_seed_affix_into_modern_stage() -> None:
@@ -7279,7 +7303,8 @@ def test_emit_era_reflexes_surface_seed_other_families() -> None:
     word_fr = {"morpheme_id": "old-french:rose", "modern_usage": "Rosen-"}
     _emit_era_reflexes(word_fr, [({"era_reflexes": {}}, [])])
     assert word_fr["era_reflexes"]["old-french"] == [{"form": "rose", "source": "self"}]
-    assert word_fr["era_reflexes"]["french"] == [{"form": "Rosen-", "source": "self"}]
+    # D55: generated surface is case-folded ('rosen-'); render re-applies case.
+    assert word_fr["era_reflexes"]["french"] == [{"form": "rosen-", "source": "self"}]
 
 
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:

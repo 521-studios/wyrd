@@ -41,7 +41,10 @@ from wyrd.generators.kenning.lexicon.bundle._emit import (
     _emit_variant_list,
     _synthesize_modern_usage,
 )
-from wyrd.generators.kenning.lexicon.bundle._family import _better_era_reflex_source
+from wyrd.generators.kenning.lexicon.bundle._family import (
+    _better_era_reflex_source,
+    _case_fold_reflex_entries,
+)
 from wyrd.generators.kenning.lexicon.pronunciation_backfill import surface_ipa
 
 
@@ -415,8 +418,15 @@ def _emit_era_reflexes(
         merged.setdefault(own_lang, {}).setdefault(own_form, {"form": own_form, "source": "self"})
         _seed_generated_surface(merged, own_lang, word.get("modern_usage") or "")
     if merged:
+        # D55: case is render-only. This is the choke point for the emitted
+        # ``era_reflexes`` — it folds BOTH the cross-family merge above AND the
+        # self-seeds below (``own_form`` = the etymon canonical_form, and the
+        # generated modern_usage), which are seeded VERBATIM and so still carry
+        # case (canonical_form is un-folded at rest, wyrd-n2j6). The per-family
+        # fold in ``_fetch_family_era_reflexes`` covers ``forms_by_lang``
+        # sampling; this covers the bundle's ``word.era_reflexes``.
         word["era_reflexes"] = {
-            target_language: [forms[form] for form in sorted(forms)]
+            target_language: _case_fold_reflex_entries([forms[form] for form in sorted(forms)])
             for target_language, forms in sorted(merged.items())
         }
 
