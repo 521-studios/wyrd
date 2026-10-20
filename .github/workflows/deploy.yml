@@ -140,7 +140,7 @@ jobs:
 
       # wyrd-20pz: Vite SPA build needs Node. Sourced from spa-next/
       # via deploy-spa.sh (npm ci + npm run build + aws s3 sync).
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -253,7 +253,7 @@ jobs:
             fi
           done
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
