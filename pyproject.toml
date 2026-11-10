@@ -59,7 +59,8 @@ dev = [
     # DBs + the autouse _isolate_default_lexicon_db / _isolate_bulk_manifest
     # fixtures, so worker distribution is safe.
     "pytest-xdist>=3.5",
-    "ruff>=0.4",
+    # Exact pin: a floated ruff drifted CI (0.17 started formatting code blocks in .md).
+    "ruff==0.17.1",
     # wyrd-0vj3: moto for offline S3 testing in bulk_sources tests.
     # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).
     "moto[s3,dynamodb]>=5.0",
@@ -93,6 +94,10 @@ target-version = ['py312']
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.format]
+# .md code blocks are often deliberate BAD examples; never reformat them.
+exclude = ["*.md"]
 
 [tool.ruff.lint]
 # wyrd-850l: PLW1514 (unspecified-encoding) enforces an explicit ``encoding=`` on
