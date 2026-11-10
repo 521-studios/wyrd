@@ -59,7 +59,7 @@ dev = [
     # DBs + the autouse _isolate_default_lexicon_db / _isolate_bulk_manifest
     # fixtures, so worker distribution is safe.
     "pytest-xdist>=3.5",
-    # Exact pin: a floated ruff drifted CI (0.17 started formatting code blocks in .md).
+    # Exact pin: a floated ruff drifted CI (a new release started formatting .md code blocks).
     "ruff==0.17.1",
     # wyrd-0vj3: moto for offline S3 testing in bulk_sources tests.
     # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).
@@ -107,10 +107,8 @@ exclude = ["*.md"]
 # activates, not every preview-only rule). It does NOT — and cannot — stop
 # ``preview`` from ALSO enabling preview-mode behavior on some already-stable rules
 # (SIM/UP/F families carry preview extensions); that is inherent to ruff's preview
-# flag. So the "no other delta" property is EMPIRICAL, not structural: full
-# ``ruff check .`` + ``ruff format --check .`` are byte-identical pre/post on ruff
-# 0.15.18 and green on CI's floated ruff — nothing in the repo currently trips those
-# preview behaviors. When PLW1514 graduates to stable upstream, drop
+# flag. So the "no other delta" property is EMPIRICAL, not structural: nothing in
+# the repo currently trips those preview behaviors. When PLW1514 graduates to stable upstream, drop
 # ``preview``/``explicit-preview-rules`` and keep only the select entry (wyrd-y0d0).
 select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "C901", "PLW1514"]
 ignore = ["E501", "SIM108"]
