@@ -57,7 +57,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: wyrd-deploy-staging
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -181,7 +181,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: wyrd-deploy-production
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
