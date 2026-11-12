@@ -27,7 +27,7 @@ Read `wyrd/generators/kenning/.reviewers/morpheme-surface-identity-reviewer.md` 
 
 ## lexicon-package-structure-reviewer
 
-**What it checks:** lexicon-DB concerns (SQL DDL, `INSERT INTO`, schema helpers, enrichment/ingest/audit passes) live under `wyrd/generators/kenning/lexicon/`; runtime files outside the package stay DB-free. Per-wyrd-67fv structural rule.
+**What it checks:** lexicon-DB concerns (SQL DDL, `INSERT INTO`, schema helpers, enrichment/ingest/audit passes) live under `wyrd/generators/kenning/lexicon/`; runtime files outside the package stay DB-free. Standing placement invariant (established by wyrd-67fv, now closed — the rule outlives the refactor).
 **When to spawn:** PR adds new `.py` files under `wyrd/generators/kenning/` (outside `lexicon/`), or any file in the diff contains `CREATE TABLE/INDEX/VIEW` or new `sqlite3` connections. Skip pure runtime/`registers/`/`vectors/`/`bundle/` edits.
 
 Read `wyrd/generators/kenning/.reviewers/lexicon-package-structure-reviewer.md` and follow it as your complete review specification.
