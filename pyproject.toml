@@ -60,7 +60,7 @@ dev = [
     # fixtures, so worker distribution is safe.
     "pytest-xdist>=3.5",
     # Exact pin: a floated ruff drifted CI (a new release started formatting .md code blocks).
-    "ruff==0.17.1",
+    "ruff==0.17.5",
     # wyrd-0vj3: moto for offline S3 testing in bulk_sources tests.
     # wyrd-dsl5: moto[dynamodb] for the defects-table tests (defects + CLI).
     "moto[s3,dynamodb]>=5.0",
